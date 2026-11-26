@@ -1,0 +1,221 @@
+import { useRef, useState } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { ErrorBox } from '../components/Layout'
+import { startJob } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { MAX_BYTES, MAX_SECONDS } from '../lib/env'
+import { requireSupabase } from '../lib/supabase'
+import type { WallHint } from '../lib/types'
+import { extensionFor, readDuration, UploadAborted, uploadResumable } from '../lib/upload'
+import { guideSeen } from './Guide'
+
+type Phase = 'pick' | 'creating' | 'uploading' | 'starting' | 'error'
+
+const WALLS: { value: '' | WallHint; label: string }[] = [
+  { value: '', label: 'Let the app guess' },
+  { value: 'slab', label: 'Slab (leans away from you)' },
+  { value: 'vertical', label: 'Vertical' },
+  { value: 'overhang', label: 'Overhang (leans over you)' },
+  { value: 'roof', label: 'Roof' },
+]
+
+export function Upload() {
+  const { session } = useAuth()
+  const nav = useNavigate()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [fileErr, setFileErr] = useState<string | null>(null)
+  const [duration, setDuration] = useState<number | null>(null)
+  const [wall, setWall] = useState<'' | WallHint>('')
+  const [phase, setPhase] = useState<Phase>('pick')
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const jobRef = useRef<{ id: string; path: string; uploaded: boolean } | null>(null)
+  const [hasJob, setHasJob] = useState(false)
+  const abortRef = useRef<(() => void) | null>(null)
+
+  if (!guideSeen()) return <Navigate to="/guide" replace />
+
+  const pick = async (f: File | undefined) => {
+    setFile(null)
+    setDuration(null)
+    setFileErr(null)
+    jobRef.current = null
+    setHasJob(false)
+    if (!f) return
+    if (!f.type.startsWith('video/') && !/\.(mp4|mov|m4v|webm|mkv|3gp)$/i.test(f.name)) {
+      setFileErr('That file is not a video. Pick a video file (MP4 or MOV).')
+      return
+    }
+    if (f.size > MAX_BYTES) {
+      setFileErr(`This video is ${(f.size / 1048576).toFixed(0)} MB. The limit is 200 MB. Trim it to the hard move, or film at a lower resolution.`)
+      return
+    }
+    try {
+      const d = await readDuration(f)
+      if (d > MAX_SECONDS + 0.5) {
+        setFileErr(`This video is ${Math.round(d)} s long. The limit is 60 s. Trim it to just before and after the fall, then pick it again.`)
+        return
+      }
+      setDuration(d)
+    } catch {
+      // Some browsers cannot read some formats (e.g. HEVC .mov on desktop). The server checks length again.
+      setDuration(null)
+    }
+    setFile(f)
+  }
+
+  const run = async () => {
+    if (!file || !session) return
+    const sb = requireSupabase()
+    setError(null)
+    try {
+      // 1. Create the job row (once; a retry reuses it).
+      if (!jobRef.current) {
+        setPhase('creating')
+        const id = crypto.randomUUID()
+        const path = `${session.user.id}/${id}/original.${extensionFor(file)}`
+        const { error: insErr } = await sb.from('jobs').insert({
+          id,
+          user_id: session.user.id,
+          status: 'uploaded',
+          video_path: path,
+          wall_hint: wall || null,
+        })
+        if (insErr) throw new Error('We could not create the job. Check your connection, then tap “Upload” again.')
+        jobRef.current = { id, path, uploaded: false }
+        setHasJob(true)
+      }
+      const job = jobRef.current
+
+      // 2. Resumable upload (skipped on retry if it already finished).
+      if (!job.uploaded) {
+        setPhase('uploading')
+        setProgress(0)
+        const { data: s1 } = await sb.auth.getSession()
+        const upToken = s1.session?.access_token
+        if (!upToken) throw new Error('Your sign-in expired. Sign out, sign in again, then upload again.')
+        const up = uploadResumable({
+          file,
+          bucket: 'videos',
+          objectName: job.path,
+          accessToken: upToken,
+          onProgress: setProgress,
+        })
+        abortRef.current = up.abort
+        try {
+          await up.promise
+        } catch (err) {
+          abortRef.current = null
+          if (err instanceof UploadAborted) {
+            throw new Error('Upload cancelled. Tap “Try again” to continue where it stopped.', { cause: err })
+          }
+          throw new Error('The upload stopped. Check your connection, then tap “Try again” — it continues where it left off.', {
+            cause: err,
+          })
+        }
+        abortRef.current = null
+        job.uploaded = true
+      }
+      const { data } = await sb.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error('Your sign-in expired. Sign out, sign in again, then tap “Try again”.')
+
+      // 3. Start analysis.
+      setPhase('starting')
+      await startJob(job.id, token)
+      nav(`/jobs/${job.id}`, { replace: true })
+    } catch (e) {
+      setPhase('error')
+      setError((e as Error).message)
+    }
+  }
+
+  const busy = phase === 'creating' || phase === 'uploading' || phase === 'starting'
+
+  return (
+    <div className="stack narrow">
+      <h1>Upload a fall</h1>
+
+      <div className="card">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="video/*"
+          capture="environment"
+          className="sr-only"
+          id="video-file"
+          onChange={(e) => pick(e.target.files?.[0])}
+          disabled={busy}
+        />
+        <input
+          type="file"
+          accept="video/*"
+          className="sr-only"
+          id="video-library"
+          onChange={(e) => pick(e.target.files?.[0])}
+          disabled={busy}
+        />
+        <div className="row">
+          <label htmlFor="video-file" className={'btn' + (busy ? ' disabled' : '')}>🎥 Record</label>
+          <label htmlFor="video-library" className={'btn ghost' + (busy ? ' disabled' : '')}>📁 Pick a video</label>
+        </div>
+        <p className="muted small">Up to 60 seconds and 200 MB.</p>
+        {fileErr && <p className="err" role="alert">{fileErr}</p>}
+        {file && (
+          <p className="file-info">
+            <strong>{file.name}</strong>
+            <br />
+            {(file.size / 1048576).toFixed(1)} MB{duration != null && ` · ${duration.toFixed(1)} s`}
+          </p>
+        )}
+      </div>
+
+      <div className="card">
+        <label htmlFor="wall" className="field-label">Wall angle</label>
+        <select id="wall" value={wall} onChange={(e) => setWall(e.target.value as '' | WallHint)} disabled={busy || hasJob}>
+          {WALLS.map((w) => (
+            <option key={w.value} value={w.value}>{w.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <p className="privacy small">
+        🔒 Your video is private. Only you can see it, unless you share a link. We use it only to make your results.
+        The raw video is deleted after 30 days.
+      </p>
+
+      {busy && (
+        <div className="progress-wrap" role="status" aria-live="polite">
+          <div className="progress">
+            <div className="progress-bar" style={{ width: `${phase === 'uploading' ? Math.round(progress * 100) : phase === 'starting' ? 100 : 2}%` }} />
+          </div>
+          <p className="muted small">
+            {phase === 'creating' && 'Getting ready…'}
+            {phase === 'uploading' && `Uploading… ${Math.round(progress * 100)}% — keep this page open.`}
+            {phase === 'starting' && 'Starting analysis…'}
+          </p>
+          {phase === 'uploading' && (
+            <button type="button" className="link-btn" onClick={() => abortRef.current?.()}>
+              Cancel upload
+            </button>
+          )}
+        </div>
+      )}
+
+      {error && <ErrorBox message={error} />}
+
+      <button type="button" className="btn wide" disabled={!file || busy} onClick={run}>
+        {phase === 'error' ? 'Try again' : 'Upload and analyze'}
+      </button>
+      {hasJob && phase === 'error' && (
+        <p className="muted small">
+          Your job is saved. You can also retry from <Link to="/jobs">My videos</Link>.
+        </p>
+      )}
+      <p className="muted small">
+        <Link to="/guide">Filming tips</Link>
+      </p>
+    </div>
+  )
+}

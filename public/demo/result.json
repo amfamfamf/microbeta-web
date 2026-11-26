@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "fps": 30,
+  "width": 720,
+  "height": 1280,
+  "duration": 3,
+  "fall": {
+    "frame": 60,
+    "drop_frame": 66,
+    "time": 2,
+    "kind": "foot_cut_then_off",
+    "confidence": 0.82
+  },
+  "wall": {
+    "class": "overhang",
+    "confidence": 0.6,
+    "source": "inferred"
+  },
+  "target_hold": {
+    "id": 7,
+    "x": 430,
+    "y": 220,
+    "w": 44,
+    "h": 36
+  },
+  "holds": {
+    "holds": [
+      {
+        "id": 0,
+        "x": 280,
+        "y": 412,
+        "w": 40,
+        "h": 34,
+        "area": 1360,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 1,
+        "x": 430,
+        "y": 462,
+        "w": 40,
+        "h": 34,
+        "area": 1360,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 2,
+        "x": 250,
+        "y": 915,
+        "w": 40,
+        "h": 30,
+        "area": 1200,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 3,
+        "x": 410,
+        "y": 885,
+        "w": 40,
+        "h": 30,
+        "area": 1200,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 7,
+        "x": 430,
+        "y": 220,
+        "w": 44,
+        "h": 36,
+        "area": 1584,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 4,
+        "x": 140,
+        "y": 640,
+        "w": 36,
+        "h": 30,
+        "area": 1080,
+        "hue_bin": 1,
+        "problem": false
+      },
+      {
+        "id": 5,
+        "x": 560,
+        "y": 700,
+        "w": 36,
+        "h": 30,
+        "area": 1080,
+        "hue_bin": 1,
+        "problem": false
+      },
+      {
+        "id": 6,
+        "x": 600,
+        "y": 330,
+        "w": 34,
+        "h": 30,
+        "area": 1020,
+        "hue_bin": 1,
+        "problem": false
+      }
+    ],
+    "problem_hue_bin": 3,
+    "confidence": 0.7
+  },
+  "cues": [
+    {
+      "rule_id": 2,
+      "category": "Feet",
+      "title": "Keep your toes pulling",
+      "text": "Your feet cut just before you fell. On the overhang, curl your toes and pull the footholds toward you until your hand is on the target hold.",
+      "frame": 46,
+      "time": 1.533,
+      "confidence": 0.78,
+      "evidence": {
+        "foot_cut_time": 1.6,
+        "hand_arrival_time": null,
+        "outward_speed": 1.9
+      }
+    },
+    {
+      "rule_id": 5,
+      "category": "Hips",
+      "title": "Hips to the wall",
+      "text": "Your center of gravity was outside your base of support while you reached. Turn your hip in toward the wall to reach farther.",
+      "frame": 36,
+      "time": 1.2,
+      "confidence": 0.61,
+      "evidence": {
+        "cog_outside_base_s": 0.4,
+        "hip_wall_distance_px": 210
+      }
+    },
+    {
+      "rule_id": 9,
+      "category": "Reach",
+      "title": "Reach from your legs",
+      "text": "You stopped about one hand short of the target. Push with your legs first, then reach.",
+      "frame": 57,
+      "time": 1.9,
+      "confidence": 0.52,
+      "evidence": {
+        "reach_gap_px": 70,
+        "arm_extension": 0.98
+      }
+    }
+  ],
+  "no_cue_reason": null,
+  "safety_note": null
+}

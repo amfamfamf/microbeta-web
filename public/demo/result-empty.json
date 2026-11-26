@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "fps": 30,
+  "width": 720,
+  "height": 1280,
+  "duration": 3,
+  "fall": {
+    "frame": 60,
+    "drop_frame": 66,
+    "time": 2,
+    "kind": "foot_cut_then_off",
+    "confidence": 0.82
+  },
+  "wall": {
+    "class": "overhang",
+    "confidence": 0.6,
+    "source": "inferred"
+  },
+  "target_hold": {
+    "id": 7,
+    "x": 430,
+    "y": 220,
+    "w": 44,
+    "h": 36
+  },
+  "holds": {
+    "holds": [
+      {
+        "id": 0,
+        "x": 280,
+        "y": 412,
+        "w": 40,
+        "h": 34,
+        "area": 1360,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 1,
+        "x": 430,
+        "y": 462,
+        "w": 40,
+        "h": 34,
+        "area": 1360,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 2,
+        "x": 250,
+        "y": 915,
+        "w": 40,
+        "h": 30,
+        "area": 1200,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 3,
+        "x": 410,
+        "y": 885,
+        "w": 40,
+        "h": 30,
+        "area": 1200,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 7,
+        "x": 430,
+        "y": 220,
+        "w": 44,
+        "h": 36,
+        "area": 1584,
+        "hue_bin": 3,
+        "problem": true
+      },
+      {
+        "id": 4,
+        "x": 140,
+        "y": 640,
+        "w": 36,
+        "h": 30,
+        "area": 1080,
+        "hue_bin": 1,
+        "problem": false
+      },
+      {
+        "id": 5,
+        "x": 560,
+        "y": 700,
+        "w": 36,
+        "h": 30,
+        "area": 1080,
+        "hue_bin": 1,
+        "problem": false
+      },
+      {
+        "id": 6,
+        "x": 600,
+        "y": 330,
+        "w": 34,
+        "h": 30,
+        "area": 1020,
+        "hue_bin": 1,
+        "problem": false
+      }
+    ],
+    "problem_hue_bin": 3,
+    "confidence": 0.7
+  },
+  "cues": [],
+  "no_cue_reason": "We could not see your feet clearly before the fall, so we will not guess a cue. Film from a little farther back so your whole body is in frame.",
+  "safety_note": "You landed close to the edge of the mat. Check the mat position before your next attempt."
+}
