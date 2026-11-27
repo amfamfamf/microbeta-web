@@ -2,6 +2,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout, RequireInvite } from './components/Layout'
 import { AuthProvider } from './lib/auth'
 import { Demo } from './pages/Demo'
+import { DemoTap } from './pages/DemoTap'
 import { Guide } from './pages/Guide'
 import { JobPage } from './pages/JobPage'
 import { Jobs } from './pages/Jobs'
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/waitlisted" element={<Waitlisted />} />
             <Route path="/demo" element={<Demo />} />
+            <Route path="/demo/tap" element={<DemoTap />} />
             <Route path="/s/:token" element={<SharePage />} />
             <Route path="/guide" element={<RequireInvite><Guide /></RequireInvite>} />
             <Route path="/upload" element={<RequireInvite><Upload /></RequireInvite>} />

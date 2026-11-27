@@ -224,9 +224,33 @@ input[type='email'], select, .share-url {
 .sw.cog { background: #ffb020; border-radius: 50%; }
 .sw.base { background: rgba(64, 214, 128, 0.7); }
 .sw.reach { background: #ff5cc8; }
+.sw.tapped { background: transparent; border: 2px solid #7fd3ff; }
 
 .result-actions { display: flex; flex-direction: column; gap: 8px; }
 .share { display: flex; flex-direction: column; gap: 6px; }
 .more-cues { display: flex; flex-direction: column; gap: 10px; }
 .analysis-details { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
 .analysis-details summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+
+/* Target-hold tap (v1.1) */
+.target-picker { margin: 8px 0; }
+.offscreen-video { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: -9999px; }
+.frame-wrap { display: flex; justify-content: center; }
+.frame-wrap[hidden] { display: none; }
+.frame { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+.frame-canvas {
+  display: block; max-width: 100%; max-height: 55vh; width: auto; height: auto;
+  border-radius: 10px; cursor: crosshair; touch-action: manipulation;
+}
+.frame-canvas.disabled { cursor: default; opacity: 0.7; }
+.tap-marker {
+  position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+  border: 3px solid #ff5cc8; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.tap-marker::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px;
+  border-radius: 50%; background: #ff5cc8;
+}
+.tips { display: flex; flex-direction: column; gap: 8px; }
+.tip { display: flex; gap: 10px; align-items: flex-start; }

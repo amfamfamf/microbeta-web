@@ -155,6 +155,19 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
         </div>
       )}
 
+      {(result.warnings?.length ?? 0) > 0 && (
+        <div className="banner info tips" role="note" aria-label="Filming tips">
+          {result.warnings!.map((w, i) => (
+            <p key={i} className="tip">
+              <span aria-hidden>💡</span>
+              <span>
+                <strong>Filming tip:</strong> {w}
+              </span>
+            </p>
+          ))}
+        </div>
+      )}
+
       {top ? (
         <CueCard cue={top} index={0} hero active={activeCue === 0} feedback={feedback} onShow={() => showCue(0)} />
       ) : (
@@ -213,7 +226,7 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
           }}
           onCue={showCue}
         />
-        {overlayOn && <Legend />}
+        {overlayOn && <Legend tapped={result.holds?.tapped_id != null} />}
       </div>
 
       {actions && <div className="result-actions">{actions}</div>}
@@ -257,19 +270,31 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
             {result.wall.class} ({result.wall.source === 'inferred' ? `guessed, ${Math.round(result.wall.confidence * 100)}%` : 'from your choice'})
           </dd>
           <dt>Target hold</dt>
-          <dd>{result.target_hold ? `#${result.target_hold.id}` : 'Not found'}</dd>
+          <dd>
+            {result.target_hold ? `#${result.target_hold.id}` : 'Not found'}
+            {result.holds?.tapped_id != null && ` (you tapped #${result.holds.tapped_id})`}
+          </dd>
+          {result.camera && (
+            <>
+              <dt>Camera</dt>
+              <dd>
+                {result.camera.moved ? 'Moved' : 'Steady'} (max shift {result.camera.max_shift_px.toFixed(1)} px)
+              </dd>
+            </>
+          )}
         </dl>
       </details>
     </div>
   )
 }
 
-function Legend() {
+function Legend({ tapped }: { tapped: boolean }) {
   return (
     <ul className="legend" aria-label="Overlay legend">
       <li><i className="sw cog" />Center of gravity + last 1 s</li>
       <li><i className="sw base" />Base of support (red = center outside)</li>
       <li><i className="sw reach" />Reach to target hold</li>
+      {tapped && <li><i className="sw tapped" />Hold you tapped</li>}
     </ul>
   )
 }

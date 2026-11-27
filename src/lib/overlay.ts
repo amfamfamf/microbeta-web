@@ -12,6 +12,7 @@ export const COLORS = {
   baseEdgeOut: 'rgba(255,82,82,0.95)',
   reach: '#ff5cc8',
   target: '#ff5cc8',
+  tapped: '#7fd3ff',
 }
 
 const MIN_SCORE = 0.3
@@ -118,6 +119,17 @@ export function drawOverlay(
     ctx.moveTo(x1, y0)
     ctx.lineTo(x1, y1)
     ctx.stroke()
+  }
+
+  // Hold the user tapped (v1.1): solid outline just outside the hold box.
+  const tappedId = r.holds?.tapped_id
+  if (tappedId != null) {
+    const h = r.holds?.holds.find((x) => x.id === tappedId)
+    if (h) {
+      ctx.strokeStyle = COLORS.tapped
+      ctx.lineWidth = lw(2.5)
+      ctx.strokeRect(h.x - lw(4), h.y - lw(4), h.w + lw(8), h.h + lw(8))
+    }
   }
 
   // Target hold + reach vector near the fall.

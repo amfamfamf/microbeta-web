@@ -5,7 +5,8 @@ import { startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { MAX_BYTES, MAX_SECONDS } from '../lib/env'
 import { requireSupabase } from '../lib/supabase'
-import type { WallHint } from '../lib/types'
+import { TargetPicker } from '../components/TargetPicker'
+import type { TargetHint, WallHint } from '../lib/types'
 import { extensionFor, readDuration, UploadAborted, uploadResumable } from '../lib/upload'
 import { guideSeen } from './Guide'
 
@@ -27,6 +28,8 @@ export function Upload() {
   const [fileErr, setFileErr] = useState<string | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
   const [wall, setWall] = useState<'' | WallHint>('')
+  const [target, setTarget] = useState<TargetHint | null>(null)
+  const [targetSkipped, setTargetSkipped] = useState(false)
   const [phase, setPhase] = useState<Phase>('pick')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +45,8 @@ export function Upload() {
     setFileErr(null)
     jobRef.current = null
     setHasJob(false)
+    setTarget(null)
+    setTargetSkipped(false)
     if (!f) return
     if (!f.type.startsWith('video/') && !/\.(mp4|mov|m4v|webm|mkv|3gp)$/i.test(f.name)) {
       setFileErr('That file is not a video. Pick a video file (MP4 or MOV).')
@@ -81,6 +86,7 @@ export function Upload() {
           status: 'uploaded',
           video_path: path,
           wall_hint: wall || null,
+          target_hint: target,
         })
         if (insErr) throw new Error('We could not create the job. Check your connection, then tap “Upload” again.')
         jobRef.current = { id, path, uploaded: false }
@@ -170,6 +176,49 @@ export function Upload() {
           </p>
         )}
       </div>
+
+      {file && (
+        <div className="card">
+          <div className="row between">
+            <span className="field-label">Tap the hold you were going for</span>
+            <span className="muted small">Optional</span>
+          </div>
+          {targetSkipped ? (
+            <p className="muted small">
+              Skipped — the app will find the hold itself.{' '}
+              <button type="button" className="link-btn" disabled={busy || hasJob} onClick={() => setTargetSkipped(false)}>
+                Tap it instead
+              </button>
+            </p>
+          ) : (
+            <>
+              <p className="muted small">This helps the app find the right hold and its color. Tap again to move it.</p>
+              <TargetPicker file={file} value={target} onChange={setTarget} disabled={busy || hasJob} />
+              <div className="row">
+                {target && (
+                  <button type="button" className="btn small ghost" disabled={busy || hasJob} onClick={() => setTarget(null)}>
+                    Clear
+                  </button>
+                )}
+                {!target && (
+                  <button
+                    type="button"
+                    className="btn small ghost"
+                    disabled={busy || hasJob}
+                    onClick={() => {
+                      setTarget(null)
+                      setTargetSkipped(true)
+                    }}
+                  >
+                    Skip
+                  </button>
+                )}
+                {target && <span className="ok small">✓ Hold marked</span>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <label htmlFor="wall" className="field-label">Wall angle</label>

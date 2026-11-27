@@ -107,8 +107,18 @@
       }
     ],
     "problem_hue_bin": 3,
-    "confidence": 0.7
+    "confidence": 0.7,
+    "tapped_id": 7
   },
+  "camera": {
+    "moved": true,
+    "max_shift_px": 41.7,
+    "jitter_px": 6.2
+  },
+  "warnings": [
+    "The camera moved during the clip, so we skipped the hold checks. Use a tripod or lean the phone on something steady.",
+    "Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view."
+  ],
   "cues": [],
   "no_cue_reason": "We could not see your feet clearly before the fall, so we will not guess a cue. Film from a little farther back so your whole body is in frame.",
   "safety_note": "You landed close to the edge of the mat. Check the mat position before your next attempt."

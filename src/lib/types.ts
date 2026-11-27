@@ -1,5 +1,11 @@
 // Types that mirror microbeta-backend/CONTRACT.md (v1). Change the contract first.
 
+/** v1.1: optional tap on the target hold, normalized 0..1 on the video's own pixels. */
+export interface TargetHint {
+  x: number
+  y: number
+}
+
 export type JobStatus = 'uploaded' | 'analyzing' | 'ready' | 'failed'
 export type WallHint = 'slab' | 'vertical' | 'overhang' | 'roof'
 
@@ -10,6 +16,7 @@ export interface Job {
   error: string | null
   video_path: string
   wall_hint: WallHint | null
+  target_hint: TargetHint | null
   created_at: string
   updated_at: string
 }
@@ -62,7 +69,13 @@ export interface ResultJson {
     holds: (Box & { id: number; area: number; hue_bin: number; problem: boolean })[]
     problem_hue_bin: number | null
     confidence: number
+    /** v1.1: the hold the user tapped, or null. */
+    tapped_id?: number | null
   } | null
+  /** v1.1, informational. */
+  camera?: { moved: boolean; max_shift_px: number; jitter_px: number }
+  /** v1.1: filming tips, always an array (optional here for v1 results). */
+  warnings?: string[]
   cues: Cue[]
   no_cue_reason: string | null
   safety_note: string | null

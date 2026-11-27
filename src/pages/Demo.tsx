@@ -32,7 +32,8 @@ export function Demo() {
     <div className="stack">
       <div className="banner info">
         Demo: a synthetic 3-second clip of a stick-figure climber.{' '}
-        {empty ? <Link to="/demo">Show the version with cues</Link> : <Link to="/demo?empty=1">Show the “no cue” version</Link>}
+        {empty ? <Link to="/demo">Show the version with cues</Link> : <Link to="/demo?empty=1">Show the “no cue” version</Link>}{' · '}
+        <Link to="/demo/tap">Try the tap-the-hold step</Link>
       </div>
       <ResultView result={data.result} features={data.features} videoUrl={`${base}video.mp4`} />
     </div>

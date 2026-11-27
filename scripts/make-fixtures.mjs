@@ -178,8 +178,12 @@ const result = {
   target_hold: { id: TARGET.id, x: TARGET.x, y: TARGET.y, w: TARGET.w, h: TARGET.h },
   holds: {
     holds: HOLDS.map((h) => ({ id: h.id, x: h.x, y: h.y, w: h.w, h: h.h, area: h.w * h.h, hue_bin: h.hue[0] === 80 ? 3 : 1, problem: h.hue[0] === 80 })),
-    problem_hue_bin: 3, confidence: 0.7,
+    problem_hue_bin: 3, confidence: 0.7, tapped_id: TARGET.id,
   },
+  camera: { moved: false, max_shift_px: 2.4, jitter_px: 0.3 },
+  warnings: [
+    'Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view.',
+  ],
   cues: [
     {
       rule_id: 2, category: 'Feet', title: 'Keep your toes pulling',
@@ -206,6 +210,11 @@ const result = {
 const resultEmpty = {
   ...result,
   cues: [],
+  camera: { moved: true, max_shift_px: 41.7, jitter_px: 6.2 },
+  warnings: [
+    'The camera moved during the clip, so we skipped the hold checks. Use a tripod or lean the phone on something steady.',
+    'Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view.',
+  ],
   no_cue_reason: 'We could not see your feet clearly before the fall, so we will not guess a cue. Film from a little farther back so your whole body is in frame.',
   safety_note: 'You landed close to the edge of the mat. Check the mat position before your next attempt.',
 }
