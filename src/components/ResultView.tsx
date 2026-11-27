@@ -292,7 +292,7 @@ function Legend({ tapped }: { tapped: boolean }) {
   return (
     <ul className="legend" aria-label="Overlay legend">
       <li><i className="sw cog" />Center of gravity + last 1 s</li>
-      <li><i className="sw base" />Base of support (red = center outside)</li>
+      <li><i className="sw base" />Base of support (dashed = center outside)</li>
       <li><i className="sw reach" />Reach to target hold</li>
       {tapped && <li><i className="sw tapped" />Hold you tapped</li>}
     </ul>

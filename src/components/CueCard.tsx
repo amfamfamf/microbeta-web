@@ -17,6 +17,11 @@ function fmtValue(v: unknown): string {
   return String(v)
 }
 
+function fmtTime(t: number) {
+  const m = Math.floor(t / 60)
+  return `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}`
+}
+
 function label(key: string) {
   return key.replace(/_/g, ' ')
 }
@@ -43,8 +48,11 @@ export function CueCard({ cue, index, hero, active, feedback, onShow }: Props) {
       <div className="cue-head">
         <span className="cue-num" aria-hidden>{index + 1}</span>
         <span className="cue-cat">{cue.category}</span>
-        <button type="button" className="link-btn" onClick={onShow}>
-          Show me ▸
+        <span className={'badge ' + (cue.confidence >= 0.7 ? 'high' : 'med')}>
+          {cue.confidence >= 0.7 ? 'High confidence' : 'Medium'}
+        </span>
+        <button type="button" className="link-btn" onClick={onShow} aria-label={`Show the moment at ${fmtTime(cue.time)}`}>
+          ▶ {fmtTime(cue.time)}
         </button>
       </div>
       {hero && <p className="eyebrow">Your top fix</p>}

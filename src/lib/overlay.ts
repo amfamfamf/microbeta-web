@@ -1,18 +1,25 @@
 import { LIMBS, type FeaturesJson, type LimbName, type Point, type ResultJson } from './types'
 
+/**
+ * Overlay colors from the Mono ice design system (DESIGN.md, tokens --ov-*).
+ * They never change with the theme. Line style differs as well as color, for color-blind users.
+ */
 export const COLORS = {
-  bone: 'rgba(255,255,255,0.9)',
-  joint: '#7fd3ff',
-  cog: '#ffb020',
-  cogPath: '255,176,32',
-  plumb: 'rgba(255,176,32,0.8)',
-  baseIn: 'rgba(64,214,128,0.35)',
-  baseOut: 'rgba(255,82,82,0.35)',
-  baseEdgeIn: 'rgba(64,214,128,0.95)',
-  baseEdgeOut: 'rgba(255,82,82,0.95)',
-  reach: '#ff5cc8',
-  target: '#ff5cc8',
-  tapped: '#7fd3ff',
+  bone: '#FFFFFF', // --ov-skel
+  joint: '#FFFFFF',
+  outline: '#06283A', // --ov-outline
+  cog: '#8EE3FF', // --ov-cog
+  cogPath: '142,227,255',
+  cogGlow: 'rgba(142,227,255,0.9)',
+  plumb: 'rgba(142,227,255,0.95)',
+  baseIn: '#FFFFFF', // solid bar: COG over the base
+  baseOut: '#B2B2B2', // --ov-fall, dashed bar: COG outside the base
+  reach: '#FFFFFF', // --ov-reach
+  target: '#FFFFFF',
+  tapped: '#8EE3FF',
+  labelBg: 'rgba(6,40,58,0.8)',
+  label: '#FFFFFF',
+  font: 'Barlow, "Helvetica Neue", Arial, sans-serif',
 }
 
 const MIN_SCORE = 0.3
@@ -106,18 +113,26 @@ export function drawOverlay(
     const ys = on.map((p) => p[1])
     const x0 = Math.min(...xs) - pad
     const x1 = Math.max(...xs) + pad
-    const y0 = Math.min(...ys) - pad
     const y1 = Math.max(...ys) + pad
     const inside = cog ? cog[0] >= x0 && cog[0] <= x1 : true
-    ctx.fillStyle = inside ? COLORS.baseIn : COLORS.baseOut
-    ctx.strokeStyle = inside ? COLORS.baseEdgeIn : COLORS.baseEdgeOut
-    ctx.lineWidth = lw(2)
-    ctx.fillRect(x0, y0, x1 - x0, y1 - y0)
+    // Bar under the lowest contact, with end caps. Solid = COG over the base, dashed grey = outside.
+    const y = y1
+    ctx.setLineDash(inside ? [] : [lw(6), lw(5)])
+    ctx.strokeStyle = COLORS.outline
+    ctx.lineWidth = lw(6)
     ctx.beginPath()
-    ctx.moveTo(x0, y0)
-    ctx.lineTo(x0, y1)
-    ctx.moveTo(x1, y0)
-    ctx.lineTo(x1, y1)
+    ctx.moveTo(x0, y)
+    ctx.lineTo(x1, y)
+    ctx.stroke()
+    ctx.strokeStyle = inside ? COLORS.baseIn : COLORS.baseOut
+    ctx.lineWidth = lw(3.5)
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.beginPath()
+    ctx.moveTo(x0, y - lw(7))
+    ctx.lineTo(x0, y + lw(7))
+    ctx.moveTo(x1, y - lw(7))
+    ctx.lineTo(x1, y + lw(7))
     ctx.stroke()
   }
 
@@ -136,17 +151,22 @@ export function drawOverlay(
   const t = r.target_hold
   if (t) {
     const near = nearFall(r, f, i)
-    ctx.strokeStyle = COLORS.target
-    ctx.globalAlpha = near ? 1 : 0.45
-    ctx.lineWidth = lw(2.5)
-    ctx.setLineDash([lw(6), lw(4)])
+    ctx.globalAlpha = near ? 1 : 0.5
+    ctx.strokeStyle = COLORS.outline
+    ctx.lineWidth = lw(6)
     ctx.strokeRect(t.x, t.y, t.w, t.h)
-    ctx.setLineDash([])
+    ctx.strokeStyle = COLORS.target
+    ctx.lineWidth = lw(3.5)
+    ctx.strokeRect(t.x, t.y, t.w, t.h)
     ctx.globalAlpha = 1
     if (near) {
       const center: Point = [t.x + t.w / 2, t.y + t.h / 2]
       const hand = reachingHand(f, center, i)
       if (hand) {
+        ctx.strokeStyle = COLORS.outline
+        ctx.fillStyle = COLORS.outline
+        ctx.lineWidth = lw(5.5)
+        arrow(ctx, hand, center, lw(13))
         ctx.strokeStyle = COLORS.reach
         ctx.fillStyle = COLORS.reach
         ctx.lineWidth = lw(3)
@@ -158,8 +178,6 @@ export function drawOverlay(
   // Skeleton.
   const kp = f.keypoints[i]
   if (kp) {
-    ctx.strokeStyle = COLORS.bone
-    ctx.lineWidth = lw(3)
     ctx.beginPath()
     for (const [a, b] of f.edges) {
       const pa = kp[a]
@@ -168,13 +186,21 @@ export function drawOverlay(
       ctx.moveTo(pa[0], pa[1])
       ctx.lineTo(pb[0], pb[1])
     }
+    ctx.strokeStyle = COLORS.outline
+    ctx.lineWidth = lw(5)
+    ctx.stroke()
+    ctx.strokeStyle = COLORS.bone
+    ctx.lineWidth = lw(2.5)
     ctx.stroke()
     ctx.fillStyle = COLORS.joint
+    ctx.strokeStyle = COLORS.outline
+    ctx.lineWidth = lw(1.25)
     for (const p of kp) {
       if (!p || p[2] < MIN_SCORE) continue
       ctx.beginPath()
-      ctx.arc(p[0], p[1], lw(3), 0, Math.PI * 2)
+      ctx.arc(p[0], p[1], lw(2.75), 0, Math.PI * 2)
       ctx.fill()
+      ctx.stroke()
     }
   }
 
@@ -201,12 +227,16 @@ export function drawOverlay(
     ctx.lineTo(cog[0], f.height)
     ctx.stroke()
     ctx.setLineDash([])
+    ctx.save()
+    ctx.shadowColor = COLORS.cogGlow
+    ctx.shadowBlur = lw(10)
     ctx.fillStyle = COLORS.cog
-    ctx.strokeStyle = '#000'
-    ctx.lineWidth = lw(1.5)
     ctx.beginPath()
     ctx.arc(cog[0], cog[1], lw(7), 0, Math.PI * 2)
     ctx.fill()
+    ctx.restore()
+    ctx.strokeStyle = COLORS.outline
+    ctx.lineWidth = lw(2)
     ctx.stroke()
   }
 
@@ -214,11 +244,13 @@ export function drawOverlay(
   const ev = f.events.find((e) => i >= e.frame && i - e.frame < f.fps * 0.4)
   if (ev) {
     const label = EVENT_LABEL[ev.kind] ?? ev.kind
-    ctx.font = `600 ${lw(15)}px system-ui, sans-serif`
+    ctx.font = `600 ${lw(15)}px ${COLORS.font}`
     const w = ctx.measureText(label).width + lw(16)
-    ctx.fillStyle = 'rgba(0,0,0,0.65)'
-    ctx.fillRect(lw(10), lw(10), w, lw(26))
-    ctx.fillStyle = '#fff'
+    ctx.fillStyle = COLORS.labelBg
+    ctx.beginPath()
+    ctx.roundRect(lw(10), lw(10), w, lw(26), lw(8))
+    ctx.fill()
+    ctx.fillStyle = COLORS.label
     ctx.textBaseline = 'middle'
     ctx.fillText(label, lw(18), lw(23))
   }

@@ -1,0 +1,99 @@
+/*
+ * Micro-Beta design system — "Mono ice" (data-system="mono" data-brand="ice").
+ * Source of truth: https://claude.ai/artifact/STyFzHX4CzP71sGVpnSg5D  (see DESIGN.md)
+ * Change tokens here first. Components in styles.css use only these variables.
+ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces and text (light) */
+  --bg: #F0FBFF;          /* Ice 50: page */
+  --surface: #FFFFFF;
+  --surface-2: #DDF4FD;   /* Ice 100: fills, cards */
+  --border: #C3E4F1;
+  --text: #06283A;        /* Deep 900 */
+  --text-muted: #3F6577;
+  --primary: #06283A;
+  --primary-press: #0A3E58;
+  --on-primary: #FFFFFF;
+  --accent: #0A7FA8;      /* Glacier 700: links, focus */
+  --success: #2E7D32;
+  --warning: #8A5A00;
+  --danger: #A4161A;      /* errors only, always with an icon */
+  --cog: #8EE3FF;         /* Ice 300: the one brand color */
+  --ice-500: #3CC4F0;     /* highlights */
+  --frost: rgba(255, 255, 255, 0.72);
+  --frost-edge: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+  /* Video overlay: same in both themes */
+  --ov-skel: #FFFFFF;
+  --ov-cog: #8EE3FF;
+  --ov-reach: #FFFFFF;
+  --ov-fall: #B2B2B2;
+  --ov-outline: #06283A;
+
+  /* Type */
+  --font-ui: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  /* Commercial faces first (license before launch), open fallbacks from Google Fonts. */
+  --font-hero: "Columna", "Columna MT", "Columna Std", "Cinzel", Georgia, serif;
+  --font-glyph: "Friz Quadrata", "Friz Quadrata Std", "Friz Quadrata ITC", "Marcellus", Georgia, serif;
+  --body-size: 16px;      /* a11y rule: body text at least 16 px */
+  --body-lh: 24px;
+
+  /* Shape and spacing */
+  --r-btn: 999px;         /* primary buttons: pill */
+  --r-btn-2: 8px;         /* every other button */
+  --r-card: 16px;
+  --r-pill: 999px;
+  --gutter: 16px;         /* 24 px tablet, 32 px desktop */
+  --btn-lg: 52px;
+  --btn-md: 44px;
+  --btn-sm: 36px;
+
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #06131C;
+    --surface: #0B1F2B;
+    --surface-2: #12293A;
+    --border: #1E3A4E;
+    --text: #EAF8FF;
+    --text-muted: #9FC7D9;
+    --primary: #8EE3FF;
+    --primary-press: #5FD3F7;
+    --on-primary: #06131C;
+    --accent: #8EE3FF;
+    --success: #4CAF50;
+    --warning: #E0A526;
+    --danger: #FF8A80;
+    --frost: rgba(11, 31, 43, 0.72);
+    --frost-edge: inset 0 1px 0 rgba(142, 227, 255, 0.18);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #06131C;
+  --surface: #0B1F2B;
+  --surface-2: #12293A;
+  --border: #1E3A4E;
+  --text: #EAF8FF;
+  --text-muted: #9FC7D9;
+  --primary: #8EE3FF;
+  --primary-press: #5FD3F7;
+  --on-primary: #06131C;
+  --accent: #8EE3FF;
+  --success: #4CAF50;
+  --warning: #E0A526;
+  --danger: #FF8A80;
+  --frost: rgba(11, 31, 43, 0.72);
+  --frost-edge: inset 0 1px 0 rgba(142, 227, 255, 0.18);
+}
+
+@media (min-width: 640px) { :root { --gutter: 24px; } }
+@media (min-width: 1024px) { :root { --gutter: 32px; } }

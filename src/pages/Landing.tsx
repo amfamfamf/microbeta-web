@@ -90,7 +90,7 @@ function Waitlist() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <button className="btn" type="submit" disabled={state === 'sending' || !isConfigured}>
+          <button className="btn ghost" type="submit" disabled={state === 'sending' || !isConfigured}>
             {state === 'sending' ? 'Joining…' : 'Join'}
           </button>
         </form>
