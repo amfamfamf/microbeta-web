@@ -15,25 +15,11 @@ import { useAuth } from '../lib/auth'
 import { MAX_BYTES, MAX_SECONDS } from '../lib/env'
 import { requireSupabase } from '../lib/supabase'
 import { TargetPicker } from '../components/TargetPicker'
-import type { HoldColor, TargetHint } from '../lib/types'
+import type { TargetHint } from '../lib/types'
 import { extensionFor, readDuration, UploadAborted, uploadResumable } from '../lib/upload'
 
 type Phase = 'pick' | 'creating' | 'uploading' | 'starting' | 'error'
 
-
-// Swatch colors are for the picker only (hold colors, not brand colors). Every chip also has its name.
-const HOLD_COLORS: { value: HoldColor; label: string; swatch: string }[] = [
-  { value: 'red', label: 'Red', swatch: '#D7263D' },
-  { value: 'orange', label: 'Orange', swatch: '#F28C28' },
-  { value: 'yellow', label: 'Yellow', swatch: '#F5D000' },
-  { value: 'green', label: 'Green', swatch: '#2FA84F' },
-  { value: 'blue', label: 'Blue', swatch: '#2563EB' },
-  { value: 'purple', label: 'Purple', swatch: '#7C3AED' },
-  { value: 'pink', label: 'Pink', swatch: '#EC4899' },
-  { value: 'black', label: 'Black', swatch: '#111111' },
-  { value: 'white', label: 'White', swatch: '#FFFFFF' },
-  { value: 'grey', label: 'Grey', swatch: '#8A8F98' },
-]
 
 export function Upload() {
   const { session } = useAuth()
@@ -42,7 +28,6 @@ export function Upload() {
   const [file, setFile] = useState<File | null>(null)
   const [fileErr, setFileErr] = useState<string | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
-  // Both are required: a value, or 'guess' (let AI guess). null = not answered yet.
   // Start from the user's last wall angle (this device first, then their last job), else unanswered at 10°.
   const [wall, setWallRaw] = useState<WallAnswer>(() => readLastWallDeg())
   const [wallRemembered, setWallRemembered] = useState(() => readLastWallDeg() != null)
@@ -52,8 +37,6 @@ export function Upload() {
     setWallRemembered(false)
     setWallRaw(v)
   }
-  const [holdColor, setHoldColor] = useState<HoldColor | 'guess' | null>(null)
-  const answered = wall !== null && holdColor !== null
 
   // Another device: take the angle from the user's last job that has one.
   useEffect(() => {
@@ -77,8 +60,9 @@ export function Upload() {
       cancelled = true
     }
   }, [session])
-  const [target, setTarget] = useState<TargetHint | null>(null)
-  const [targetSkipped, setTargetSkipped] = useState(false)
+  // Required answers: a value, or 'guess' (let AI guess). null = not answered yet.
+  const [target, setTarget] = useState<TargetHint | 'guess' | null>(null)
+  const answered = wall !== null && target !== null
   const [phase, setPhase] = useState<Phase>('pick')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -93,7 +77,6 @@ export function Upload() {
     jobRef.current = null
     setHasJob(false)
     setTarget(null)
-    setTargetSkipped(false)
     if (!f) return
     if (!f.type.startsWith('video/') && !/\.(mp4|mov|m4v|webm|mkv|3gp)$/i.test(f.name)) {
       setFileErr('That file is not a video. Pick a video file (MP4 or MOV).')
@@ -146,8 +129,7 @@ export function Upload() {
           video_path: path,
           wall_hint: typeof wall === 'number' ? bandFor(wall).hint : null,
           wall_angle_deg: typeof wall === 'number' ? wall : null,
-          target_hint: target,
-          hold_color: holdColor === 'guess' ? null : holdColor,
+          target_hint: target === 'guess' ? null : target,
           ...(duration != null && duration > 0 ? { duration_s: Math.min(61, Math.round(duration * 10) / 10) } : {}),
         })
         if (insErr) throw new Error('We could not create the job. Check your connection, then tap “Upload” again.')
@@ -226,69 +208,35 @@ export function Upload() {
       {file && (
         <div className="card">
           <div className="row between">
-            <span className="field-label">Tap the hold you were going for</span>
-            <span className="muted small">Optional</span>
+            <span className="field-label">Select the hold where you fell</span>
+            <span className="req small">Required</span>
           </div>
-          {targetSkipped ? (
-            <p className="muted small">
-              Skipped — the app will find the hold itself.{' '}
-              <button type="button" className="link-btn" disabled={busy || hasJob} onClick={() => setTargetSkipped(false)}>
-                Tap it instead
-              </button>
-            </p>
-          ) : (
-            <>
-              <p className="muted small">This helps the app find the right hold and its color. Tap again to move it.</p>
-              <TargetPicker file={file} value={target} onChange={setTarget} disabled={busy || hasJob} />
-              <div className="row">
-                {target && (
-                  <button type="button" className="btn small ghost" disabled={busy || hasJob} onClick={() => setTarget(null)}>
-                    Clear
-                  </button>
-                )}
-                {!target && (
-                  <button
-                    type="button"
-                    className="btn small ghost"
-                    disabled={busy || hasJob}
-                    onClick={() => {
-                      setTarget(null)
-                      setTargetSkipped(true)
-                    }}
-                  >
-                    Skip
-                  </button>
-                )}
-                {target && <span className="ok small">✓ Hold marked</span>}
-              </div>
-            </>
-          )}
+          <p className="muted small">AI will use the color to identify the route.</p>
+          <TargetPicker
+            file={file}
+            value={target === 'guess' ? null : target}
+            onChange={setTarget}
+            disabled={busy || hasJob || target === 'guess'}
+          />
+          <div className="row">
+            {target && target !== 'guess' && (
+              <>
+                <span className="ok small">✓ Hold selected · tap again to move it</span>
+                <button type="button" className="btn small ghost" disabled={busy || hasJob} onClick={() => setTarget(null)}>
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+          <div role="radiogroup" aria-label="Or">
+            <GuessChip
+              on={target === 'guess'}
+              disabled={busy || hasJob}
+              onClick={() => setTarget(target === 'guess' ? null : 'guess')}
+            />
+          </div>
         </div>
       )}
-
-      <fieldset className="card hold-colors" disabled={busy || hasJob}>
-        <div className="row between">
-          <legend className="field-label">Hold color</legend>
-          <span className="req small">Required</span>
-        </div>
-        <p className="muted small">The color of the holds on your problem. It helps the app find them.</p>
-        <div className="chip-row" role="radiogroup" aria-label="Hold color">
-          {HOLD_COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              role="radio"
-              aria-checked={holdColor === c.value}
-              className={'chip color-chip' + (holdColor === c.value ? ' on' : '')}
-              onClick={() => setHoldColor(c.value)}
-            >
-              <i className="swatch" style={{ background: c.swatch }} aria-hidden />
-              {c.label}
-            </button>
-          ))}
-          <GuessChip on={holdColor === 'guess'} onClick={() => setHoldColor('guess')} />
-        </div>
-      </fieldset>
 
       <div className="card">
         <WallAngle value={wall} onChange={setWall} disabled={busy || hasJob} remembered={wallRemembered} />
@@ -323,10 +271,10 @@ export function Upload() {
         <>
           {!answered && (
             <p className="muted small center-text" role="status">
-              {wall === null && holdColor === null
-                ? 'Pick the hold color and wall angle, or let AI guess.'
-                : holdColor === null
-                  ? 'Pick the hold color, or let AI guess.'
+              {wall === null && target === null
+                ? 'Select the hold where you fell and set the wall angle, or let AI guess.'
+                : target === null
+                  ? 'Select the hold where you fell, or let AI guess.'
                   : 'Set the wall angle, or let AI guess.'}
             </p>
           )}
