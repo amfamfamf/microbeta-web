@@ -340,7 +340,8 @@ input[type='email'], select, .share-url {
 
 /* Required tag + "Let AI guess" chip */
 .req { font: 500 11px/14px var(--font-ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text); }
-.guess-chip { align-self: flex-start; }
+.cta-pair { display: flex; flex-direction: column; gap: 8px; }
+.guess-btn .guess-cost { font-weight: 400; }
 .guess-cost { font-weight: 400; opacity: 0.75; }
 
 /* Wall angle picker (5° steps) */

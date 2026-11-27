@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AddVideo } from '../components/AddVideo'
 import {
   bandFor,
-  GuessChip,
+  GuessButton,
   readLastWallDeg,
   saveLastWallDeg,
   WallAngle,
@@ -62,7 +62,6 @@ export function Upload() {
   }, [session])
   // Required answers: a value, or 'guess' (let AI guess). null = not answered yet.
   const [target, setTarget] = useState<TargetHint | 'guess' | null>(null)
-  const answered = wall !== null && target !== null
   // Three screens: 1 add video, 2 select the hold, 3 wall angle (then upload).
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const go = (n: 1 | 2 | 3) => {
@@ -118,7 +117,9 @@ export function Upload() {
     if (handedFile instanceof File) void Promise.resolve().then(() => pickRef.current(handedFile))
   }, [handedFile])
 
-  const run = async () => {
+  /** `wallOverride`: the secondary "Let AI guess" button answers the wall angle and uploads in one tap. */
+  const run = async (wallOverride?: WallAnswer) => {
+    const wall_ = wallOverride !== undefined ? wallOverride : wall
     if (!file || !session) return
     const sb = requireSupabase()
     setError(null)
@@ -126,7 +127,7 @@ export function Upload() {
       // 1. Create the job row (once; a retry reuses it).
       if (!jobRef.current) {
         setPhase('creating')
-        if (typeof wall === 'number') saveLastWallDeg(wall)
+        if (typeof wall_ === 'number') saveLastWallDeg(wall_)
         const id = crypto.randomUUID()
         const path = `${session.user.id}/${id}/original.${extensionFor(file)}`
         const { error: insErr } = await sb.from('jobs').insert({
@@ -134,8 +135,8 @@ export function Upload() {
           user_id: session.user.id,
           status: 'uploaded',
           video_path: path,
-          wall_hint: typeof wall === 'number' ? bandFor(wall).hint : null,
-          wall_angle_deg: typeof wall === 'number' ? wall : null,
+          wall_hint: typeof wall_ === 'number' ? bandFor(wall_).hint : null,
+          wall_angle_deg: typeof wall_ === 'number' ? wall_ : null,
           target_hint: target === 'guess' ? null : target,
           ...(duration != null && duration > 0 ? { duration_s: Math.min(61, Math.round(duration * 10) / 10) } : {}),
         })
@@ -256,20 +257,18 @@ export function Upload() {
                 </button>
               </div>
             )}
-            <div role="radiogroup" aria-label="Or">
-              <GuessChip
-                on={target === 'guess'}
-                disabled={busy || hasJob}
-                onClick={() => setTarget(target === 'guess' ? null : 'guess')}
-              />
-            </div>
           </div>
-          {target === null && (
-            <p className="muted small center-text" role="status">Tap the hold, or let AI guess.</p>
-          )}
-          <button type="button" className="btn wide" disabled={target === null} onClick={() => go(3)}>
-            Next
-          </button>
+          <div className="cta-pair">
+            <button type="button" className="btn wide" disabled={target === null || target === 'guess'} onClick={() => go(3)}>
+              Next
+            </button>
+            <GuessButton
+              onClick={() => {
+                setTarget('guess')
+                go(3)
+              }}
+            />
+          </div>
         </>
       )}
 
@@ -280,11 +279,6 @@ export function Upload() {
           <div className="card">
             <WallAngle value={wall} onChange={setWall} disabled={busy || hasJob} remembered={wallRemembered} hideLabel />
           </div>
-
-          <p className="privacy small">
-            🔒 Your video is private. Only you can see it, unless you share a link. We use it only to make your results.
-            The raw video is deleted after 30 days.
-          </p>
 
           {busy && (
             <div className="progress-wrap" role="status" aria-live="polite">
@@ -306,12 +300,25 @@ export function Upload() {
 
           {error && <ErrorBox message={error} />}
 
-          {!answered && (
-            <p className="muted small center-text" role="status">Set the wall angle, or let AI guess.</p>
-          )}
-          <button type="button" className="btn wide" disabled={busy || !answered} onClick={run}>
-            {phase === 'error' ? 'Try again' : 'Upload and analyze'}
-          </button>
+          <div className="cta-pair">
+            <button
+              type="button"
+              className="btn wide"
+              disabled={busy || (typeof wall !== 'number' && !(hasJob && phase === 'error'))}
+              onClick={() => run()}
+            >
+              {phase === 'error' ? 'Try again' : 'Analyze'}
+            </button>
+            {!hasJob && (
+              <GuessButton
+                disabled={busy}
+                onClick={() => {
+                  setWall('guess')
+                  run('guess')
+                }}
+              />
+            )}
+          </div>
         </>
       )}
       {hasJob && phase === 'error' && (

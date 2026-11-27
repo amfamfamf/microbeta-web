@@ -29,17 +29,10 @@ export function bandFor(deg: number): Band {
   return BANDS.find((b) => deg >= b.from && deg <= b.to) ?? BANDS[1]
 }
 
-/** The "Let AI guess" choice, shared by wall angle and hold color. */
-export function GuessChip({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) {
+/** Secondary call to action: skip this answer and let AI guess it. */
+export function GuessButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={on}
-      className={'chip guess-chip' + (on ? ' on' : '')}
-      disabled={disabled}
-      onClick={onClick}
-    >
+    <button type="button" className="btn ghost wide guess-btn" disabled={disabled} onClick={onClick}>
       Let AI guess <span className="guess-cost">(decreases accuracy)</span>
     </button>
   )
@@ -139,9 +132,6 @@ export function WallAngle({ value, onChange, disabled, remembered, hideLabel }: 
         <span>90° roof</span>
       </div>
 
-      <div role="radiogroup" aria-label="Or">
-        <GuessChip on={guess} disabled={disabled} onClick={() => onChange(guess ? null : 'guess')} />
-      </div>
     </div>
   )
 }
