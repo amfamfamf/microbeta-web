@@ -63,6 +63,12 @@ export function Upload() {
   // Required answers: a value, or 'guess' (let AI guess). null = not answered yet.
   const [target, setTarget] = useState<TargetHint | 'guess' | null>(null)
   const answered = wall !== null && target !== null
+  // Three screens: 1 add video, 2 select the hold, 3 wall angle (then upload).
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const go = (n: 1 | 2 | 3) => {
+    setStep(n)
+    window.scrollTo({ top: 0 })
+  }
   const [phase, setPhase] = useState<Phase>('pick')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -98,6 +104,7 @@ export function Upload() {
       setDuration(null)
     }
     setFile(f)
+    go(2)
   }
 
   // A file chosen from "Add video" on another screen arrives in the navigation state.
@@ -183,100 +190,124 @@ export function Upload() {
 
   const busy = phase === 'creating' || phase === 'uploading' || phase === 'starting'
 
-  return (
-    <div className="stack narrow">
-      <h1>Upload a fall</h1>
+  const back = (n: 1 | 2) => (
+    <button type="button" className="link-btn" disabled={busy || hasJob} onClick={() => go(n)}>
+      ‹ Back
+    </button>
+  )
 
-      <div className="card">
-        <AddVideo
-          onPick={pick}
-          label={file ? 'Change video' : 'Add video'}
-          variant={file ? 'ghost' : 'primary'}
-          disabled={busy || hasJob}
-        />
-        <p className="muted small">Up to 60 seconds and 200 MB.</p>
-        {fileErr && <p className="err" role="alert">{fileErr}</p>}
-        {file && (
-          <p className="file-info">
-            <strong>{file.name}</strong>
-            <br />
-            {(file.size / 1048576).toFixed(1)} MB{duration != null && ` · ${duration.toFixed(1)} s`}
-          </p>
-        )}
+  return (
+    <div className="stack narrow upload-flow">
+      <div className="row between step-head">
+        <span className="eyebrow">Step {step} of 3</span>
+        <ol className="step-dots" aria-hidden>
+          {[1, 2, 3].map((n) => (
+            <li key={n} className={n === step ? 'on' : n < step ? 'done' : ''} />
+          ))}
+        </ol>
       </div>
 
-      {file && (
-        <div className="card">
-          <div className="row between">
-            <span className="field-label">Select the hold where you fell</span>
-            <span className="req small">Required</span>
+      {step === 1 && (
+        <>
+          <h1>Add your video</h1>
+          <p className="muted">Up to 60 seconds and 200 MB. Start just before the hard move.</p>
+          <div className="card">
+            <AddVideo
+              onPick={pick}
+              label={file ? 'Change video' : 'Add video'}
+              variant={file ? 'ghost' : 'primary'}
+              size="wide"
+              disabled={busy || hasJob}
+            />
+            {fileErr && <p className="err" role="alert">{fileErr}</p>}
+            {file && (
+              <p className="file-info">
+                <strong>{file.name}</strong>
+                <br />
+                {(file.size / 1048576).toFixed(1)} MB{duration != null && ` · ${duration.toFixed(1)} s`}
+              </p>
+            )}
           </div>
-          <p className="muted small">AI will use the color to identify the route.</p>
-          <TargetPicker
-            file={file}
-            value={target === 'guess' ? null : target}
-            onChange={setTarget}
-            disabled={busy || hasJob || target === 'guess'}
-          />
-          <div className="row">
+          {file && (
+            <button type="button" className="btn wide" onClick={() => go(2)}>
+              Next
+            </button>
+          )}
+        </>
+      )}
+
+      {step === 2 && file && (
+        <>
+          {back(1)}
+          <h1>Select the hold where you fell</h1>
+          <p className="muted">AI will use the color to identify the route.</p>
+          <div className="card">
+            <TargetPicker
+              file={file}
+              value={target === 'guess' ? null : target}
+              onChange={setTarget}
+              disabled={busy || hasJob || target === 'guess'}
+            />
             {target && target !== 'guess' && (
-              <>
+              <div className="row">
                 <span className="ok small">✓ Hold selected · tap again to move it</span>
                 <button type="button" className="btn small ghost" disabled={busy || hasJob} onClick={() => setTarget(null)}>
                   Clear
                 </button>
-              </>
+              </div>
             )}
+            <div role="radiogroup" aria-label="Or">
+              <GuessChip
+                on={target === 'guess'}
+                disabled={busy || hasJob}
+                onClick={() => setTarget(target === 'guess' ? null : 'guess')}
+              />
+            </div>
           </div>
-          <div role="radiogroup" aria-label="Or">
-            <GuessChip
-              on={target === 'guess'}
-              disabled={busy || hasJob}
-              onClick={() => setTarget(target === 'guess' ? null : 'guess')}
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="card">
-        <WallAngle value={wall} onChange={setWall} disabled={busy || hasJob} remembered={wallRemembered} />
-      </div>
-
-      <p className="privacy small">
-        🔒 Your video is private. Only you can see it, unless you share a link. We use it only to make your results.
-        The raw video is deleted after 30 days.
-      </p>
-
-      {busy && (
-        <div className="progress-wrap" role="status" aria-live="polite">
-          <div className="progress">
-            <div className="progress-bar" style={{ width: `${phase === 'uploading' ? Math.round(progress * 100) : phase === 'starting' ? 100 : 2}%` }} />
-          </div>
-          <p className="muted small">
-            {phase === 'creating' && 'Getting ready…'}
-            {phase === 'uploading' && `Uploading… ${Math.round(progress * 100)}% — keep this page open.`}
-            {phase === 'starting' && 'Starting analysis…'}
-          </p>
-          {phase === 'uploading' && (
-            <button type="button" className="link-btn" onClick={() => abortRef.current?.()}>
-              Cancel upload
-            </button>
+          {target === null && (
+            <p className="muted small center-text" role="status">Tap the hold, or let AI guess.</p>
           )}
-        </div>
+          <button type="button" className="btn wide" disabled={target === null} onClick={() => go(3)}>
+            Next
+          </button>
+        </>
       )}
 
-      {error && <ErrorBox message={error} />}
-
-      {file && (
+      {step === 3 && file && (
         <>
+          {back(2)}
+          <h1>Wall angle</h1>
+          <div className="card">
+            <WallAngle value={wall} onChange={setWall} disabled={busy || hasJob} remembered={wallRemembered} hideLabel />
+          </div>
+
+          <p className="privacy small">
+            🔒 Your video is private. Only you can see it, unless you share a link. We use it only to make your results.
+            The raw video is deleted after 30 days.
+          </p>
+
+          {busy && (
+            <div className="progress-wrap" role="status" aria-live="polite">
+              <div className="progress">
+                <div className="progress-bar" style={{ width: `${phase === 'uploading' ? Math.round(progress * 100) : phase === 'starting' ? 100 : 2}%` }} />
+              </div>
+              <p className="muted small">
+                {phase === 'creating' && 'Getting ready…'}
+                {phase === 'uploading' && `Uploading… ${Math.round(progress * 100)}% — keep this page open.`}
+                {phase === 'starting' && 'Starting analysis…'}
+              </p>
+              {phase === 'uploading' && (
+                <button type="button" className="link-btn" onClick={() => abortRef.current?.()}>
+                  Cancel upload
+                </button>
+              )}
+            </div>
+          )}
+
+          {error && <ErrorBox message={error} />}
+
           {!answered && (
-            <p className="muted small center-text" role="status">
-              {wall === null && target === null
-                ? 'Select the hold where you fell and set the wall angle, or let AI guess.'
-                : target === null
-                  ? 'Select the hold where you fell, or let AI guess.'
-                  : 'Set the wall angle, or let AI guess.'}
-            </p>
+            <p className="muted small center-text" role="status">Set the wall angle, or let AI guess.</p>
           )}
           <button type="button" className="btn wide" disabled={busy || !answered} onClick={run}>
             {phase === 'error' ? 'Try again' : 'Upload and analyze'}

@@ -51,6 +51,8 @@ interface Props {
   disabled?: boolean
   /** Shown under the band name when the value came from the user's last upload. */
   remembered?: boolean
+  /** The screen title already says "Wall angle". */
+  hideLabel?: boolean
 }
 
 const DEFAULT_DEG = 10 // where the slider sits before the first answer
@@ -77,7 +79,7 @@ export function saveLastWallDeg(deg: number) {
 }
 
 /** Wall angle in 5° steps, drawn like a board-angle picker. Required: an angle or "Let AI guess". */
-export function WallAngle({ value, onChange, disabled, remembered }: Props) {
+export function WallAngle({ value, onChange, disabled, remembered, hideLabel }: Props) {
   const set = typeof value === 'number'
   const guess = value === 'guess'
   const deg = set ? value : DEFAULT_DEG
@@ -97,10 +99,14 @@ export function WallAngle({ value, onChange, disabled, remembered }: Props) {
 
   return (
     <div className={'wall-angle' + (set ? '' : ' unset')}>
-      <div className="row between">
-        <label htmlFor="wall-deg" className="field-label">Wall angle</label>
-        <span className="req small">Required</span>
-      </div>
+      {hideLabel ? (
+        <label htmlFor="wall-deg" className="sr-only">Wall angle</label>
+      ) : (
+        <div className="row between">
+          <label htmlFor="wall-deg" className="field-label">Wall angle</label>
+          <span className="req small">Required</span>
+        </div>
+      )}
 
       <svg viewBox="0 0 220 140" className="wall-pic" aria-hidden>
         <line x1={px} y1={fy} x2={px} y2={14} className="wall-ref" />

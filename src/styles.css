@@ -384,3 +384,13 @@ input[type='email'], select, .share-url {
 .wall-angle.unset .range-dots::-webkit-slider-thumb { background: var(--surface); }
 .wall-angle.unset .range-dots::-moz-range-thumb { background: var(--surface); }
 .range-ends { display: flex; justify-content: space-between; }
+
+/* Upload steps */
+.upload-flow h1 { margin-bottom: 0; font-size: 30px; line-height: 34px; }
+.step-head { margin-bottom: -6px; }
+.step-head .eyebrow { margin: 0; }
+.step-dots { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.step-dots li { width: 24px; height: 4px; border-radius: var(--r-pill); background: var(--border); }
+.step-dots li.done { background: var(--text-muted); }
+.step-dots li.on { background: var(--text); }
+.upload-flow > .link-btn { align-self: flex-start; margin-bottom: -10px; }
