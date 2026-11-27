@@ -41,10 +41,10 @@
   --body-lh: 24px;
 
   /* Shape and spacing */
-  --r-btn: 999px;         /* primary buttons: pill */
-  --r-btn-2: 8px;         /* every other button */
-  --r-card: 16px;
-  --r-pill: 999px;
+  /* Shape rule v2: three radii only. */
+  --r-pill: 999px;        /* anything you tap: buttons, inputs, chips (icon buttons: 50%) */
+  --r-card: 16px;         /* anything that holds content: cards, alerts, video */
+  --r-inner: 8px;         /* media inside a container: thumbnails, labels on video */
   --gutter: 16px;         /* 24 px tablet, 32 px desktop */
   --btn-lg: 52px;
   --btn-md: 44px;

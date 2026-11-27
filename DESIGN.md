@@ -51,7 +51,11 @@ open fallbacks (Cinzel, Marcellus, Barlow) load from Google Fonts in `index.html
 
 ## Shape, spacing, motion
 
-- Radius: primary button = pill (`999px`); every other button = `8px`; card = `16px`; chips = pill.
+- **Shape rule (v2): three radii only.**
+  - `--r-pill` (full): anything you tap — every button, input, chip, toggle. Icon buttons are circles.
+  - `--r-card` (16 px): anything that holds content — cards, alerts, upload area, video.
+  - `--r-inner` (8 px): media or labels inside a container — thumbnails, labels on the video.
+  - Tape tags keep their cut ends. A control next to a control always has the same shape.
 - Buttons: large 52 (primary, full width, bottom of screen), medium 44 (default), small 36 (chips, inline).
   Pressed = darker + `scale(.98)`. Disabled = 40% opacity. Focus = 2 px `--accent` ring.
 - Side padding (`--gutter`): 16 px mobile, 24 px ≥ 640, 32 px ≥ 1024.
@@ -64,7 +68,7 @@ open fallbacks (Cinzel, Marcellus, Barlow) load from Google Fonts in `index.html
 
 | Class | Spec component |
 |---|---|
-| `.btn`, `.btn.ghost`, `.btn.small`, `.btn.wide` | Primary, secondary, small, large |
+| `.btn`, `.btn.ghost`, `.btn.small`, `.btn.wide` | Primary, secondary, small, large (all pills) |
 | `.card`, `.cue-card`, `.job-row` | One card style |
 | `.badge.high` / `.badge.med` | Confidence: filled ice dot / hollow ring, always with text |
 | `.pill.ready` / `.pill.analyzing` / `.pill.failed` | Status chips that differ by shape: dot / pulsing ring / ✕ |
