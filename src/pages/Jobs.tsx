@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AddVideo } from '../components/AddVideo'
 import { ErrorBox, Spinner } from '../components/Layout'
-import { startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { STATUS_LABEL, useJobs } from '../lib/jobs'
-import { requireSupabase } from '../lib/supabase'
+import { useTiles, type Tile } from '../lib/thumbs'
 import type { Job } from '../lib/types'
 
 function when(iso: string) {
@@ -16,6 +14,7 @@ function when(iso: string) {
 export function Jobs() {
   const { session } = useAuth()
   const { jobs, error, retry } = useJobs(session!.user.id)
+  const tiles = useTiles(jobs)
 
   return (
     <div className="stack">
@@ -32,9 +31,9 @@ export function Jobs() {
         </div>
       )}
       {jobs && jobs.length > 0 && (
-        <ul className="job-list">
+        <ul className="video-grid">
           {jobs.map((j) => (
-            <JobRow key={j.id} job={j} />
+            <JobTile key={j.id} job={j} tile={tiles[j.id]} />
           ))}
         </ul>
       )}
@@ -51,42 +50,33 @@ export function StatusPill({ status }: { status: Job['status'] }) {
   )
 }
 
-function JobRow({ job }: { job: Job }) {
-  const [err, setErr] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+function dur(s: number) {
+  const r = Math.round(s)
+  return `${Math.floor(r / 60)}:${String(r % 60).padStart(2, '0')}`
+}
 
-  const start = async () => {
-    setBusy(true)
-    setErr(null)
-    try {
-      const { data } = await requireSupabase().auth.getSession()
-      await startJob(job.id, data.session?.access_token ?? '')
-    } catch (e) {
-      setErr((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
+function JobTile({ job, tile }: { job: Job; tile?: Tile }) {
   return (
-    <li className="job-row">
-      <Link to={`/jobs/${job.id}`} className="job-link">
-        <div>
-          <div className="job-title">{when(job.created_at)}</div>
-          <div className="muted small">{job.wall_hint ? `Wall: ${job.wall_hint}` : 'Wall: AI guesses'}</div>
-        </div>
-        <StatusPill status={job.status} />
+    <li>
+      <Link
+        to={`/jobs/${job.id}`}
+        className="tile"
+        aria-label={`Video from ${when(job.created_at)}, ${STATUS_LABEL[job.status]}`}
+      >
+        {tile?.img ? (
+          <img src={tile.img} alt="" loading="lazy" />
+        ) : tile?.video ? (
+          <video src={`${tile.video}#t=0.5`} muted playsInline preload="metadata" tabIndex={-1} />
+        ) : null}
+        {job.status !== 'ready' && (
+          <span className={`tile-badge ${job.status}`}>
+            {job.status === 'analyzing' && <span className="pulse" aria-hidden />}
+            {job.status === 'failed' && <span aria-hidden>✕ </span>}
+            {STATUS_LABEL[job.status]}
+          </span>
+        )}
+        {job.duration_s != null && job.duration_s > 0 && <span className="tile-dur">{dur(job.duration_s)}</span>}
       </Link>
-      {job.status === 'failed' && job.error && <p className="err small">{job.error}</p>}
-      {job.status === 'uploaded' && (
-        <div className="job-extra">
-          <p className="muted small">Not started yet. If the upload finished, start the analysis.</p>
-          <button type="button" className="btn small" disabled={busy} onClick={start}>
-            {busy ? 'Starting…' : 'Start analysis'}
-          </button>
-          {err && <p className="err small">{err}</p>}
-        </div>
-      )}
     </li>
   )
 }

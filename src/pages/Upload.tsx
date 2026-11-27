@@ -16,6 +16,7 @@ import { MAX_BYTES, MAX_SECONDS } from '../lib/env'
 import { requireSupabase } from '../lib/supabase'
 import { TargetPicker } from '../components/TargetPicker'
 import type { TargetHint } from '../lib/types'
+import { uploadThumb } from '../lib/thumbs'
 import { extensionFor, readDuration, UploadAborted, uploadResumable } from '../lib/upload'
 
 type Phase = 'pick' | 'creating' | 'uploading' | 'starting' | 'error'
@@ -142,6 +143,7 @@ export function Upload() {
         })
         if (insErr) throw new Error('We could not create the job. Check your connection, then tap “Upload” again.')
         jobRef.current = { id, path, uploaded: false }
+        void uploadThumb({ id, user_id: session.user.id }, file) // for the My videos grid; best effort
         setHasJob(true)
       }
       const job = jobRef.current

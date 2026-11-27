@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AddVideo } from '../components/AddVideo'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { ErrorBox, Spinner } from '../components/Layout'
 import { ResultView } from '../components/ResultView'
 import { ShareButton } from '../components/ShareButton'
@@ -8,6 +9,7 @@ import { fetchJson, startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useJob } from '../lib/jobs'
 import { objectPath, requireSupabase } from '../lib/supabase'
+import { deleteJob } from '../lib/thumbs'
 import type { CueFeedbackRow, FeaturesJson, FeedbackApi, Job, QualityReport, ResultJson, ResultsRow } from '../lib/types'
 import { StatusPill } from './Jobs'
 
@@ -28,6 +30,50 @@ export function JobPage() {
       </div>
       {job.status !== 'ready' && <StatusSteps job={job} />}
       {job.status === 'ready' && <ReadyResult job={job} />}
+      <DeleteVideo job={job} />
+    </div>
+  )
+}
+
+function DeleteVideo({ job }: { job: Job }) {
+  const nav = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const analyzing = job.status === 'analyzing'
+
+  const confirm = async () => {
+    setBusy(true)
+    setErr(null)
+    try {
+      await deleteJob(job)
+      nav('/jobs', { replace: true })
+    } catch (e) {
+      setErr((e as Error).message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="delete-zone">
+      <button type="button" className="btn small destructive" disabled={analyzing} onClick={() => setOpen(true)}>
+        <span aria-hidden>🗑</span> Delete video
+      </button>
+      {analyzing && <p className="muted small">You can delete this video when the analysis finishes.</p>}
+      <ConfirmDialog
+        open={open}
+        title="Delete this video?"
+        confirmLabel="Delete"
+        busy={busy}
+        error={err}
+        onConfirm={confirm}
+        onCancel={() => {
+          setOpen(false)
+          setErr(null)
+        }}
+      >
+        <p>This deletes the video, its analysis and any share links. You cannot undo this.</p>
+      </ConfirmDialog>
     </div>
   )
 }

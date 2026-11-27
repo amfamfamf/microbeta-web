@@ -30,6 +30,8 @@ export interface Job {
   error: string | null
   video_path: string
   wall_hint: WallHint | null
+  /** Set when the 30-day cleanup removed the original upload. */
+  original_deleted_at?: string | null
   target_hint: TargetHint | null
   /** v1.2: upload quality check, written by the worker. */
   quality?: QualityReport | null

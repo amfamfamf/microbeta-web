@@ -19,6 +19,7 @@
   --accent: #0A7FA8;      /* Glacier 700: links, focus */
   --success: #2E7D32;
   --warning: #8A5A00;
+  --scrim: rgb(6 19 28 / 0.6);  /* behind modals */
   --danger: #A4161A;      /* errors only, always with an icon */
   --cog: #8EE3FF;         /* Ice 300: the one brand color */
   --ice-500: #3CC4F0;     /* highlights */

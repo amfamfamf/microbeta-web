@@ -395,3 +395,32 @@ input[type='email'], select, .share-url {
 .step-dots li.done { background: var(--text-muted); }
 .step-dots li.on { background: var(--text); }
 .upload-flow > .link-btn { align-self: flex-start; margin-bottom: -10px; }
+
+/* ---------------------------------------------------------------- My videos grid (3 across, like a profile grid) */
+.video-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.tile {
+  position: relative; display: block; aspect-ratio: 3 / 4; overflow: hidden;
+  background: var(--surface-2); border-radius: var(--r-inner);
+}
+.tile img, .tile video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tile-badge, .tile-dur {
+  position: absolute; display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--text); font: 500 11px/16px var(--font-ui);
+}
+.tile-badge { top: 6px; left: 6px; }
+.tile-badge.failed { color: var(--danger); }
+.tile-dur { bottom: 6px; right: 6px; }
+
+/* ---------------------------------------------------------------- delete + confirm modal */
+.btn.destructive { background: transparent; color: var(--danger); border-color: var(--danger); }
+.btn.destructive:hover { background: var(--surface-2); }
+.delete-zone { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-top: 8px; }
+dialog.modal {
+  border: none; padding: 20px; width: min(400px, calc(100vw - 32px));
+  background: var(--surface); color: var(--text); border-radius: var(--r-card);
+}
+dialog.modal::backdrop { background: var(--scrim); }
+dialog.modal h2 { margin: 0 0 8px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
