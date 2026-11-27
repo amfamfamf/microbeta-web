@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { drawOverlay, frameAt } from '../lib/overlay'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { drawOverlay, frameAt, layersFor, type Layer } from '../lib/overlay'
 import type { FeaturesJson, FeedbackApi, ResultJson } from '../lib/types'
 import { CueCard } from './CueCard'
 import { Scrubber } from './Scrubber'
@@ -42,16 +42,17 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
   const [videoError, setVideoError] = useState(false)
 
   // Latest values for the paint loop without re-subscribing it.
-  const live = useRef({ result, features, overlayOn })
+  const layers = useMemo(() => layersFor(result.cues[activeCue]), [result, activeCue])
+  const live = useRef({ result, features, overlayOn, layers })
   useEffect(() => {
-    live.current = { result, features, overlayOn }
+    live.current = { result, features, overlayOn, layers }
   })
 
   const paint = useCallback((t: number) => {
     const canvas = canvasRef.current
     const box = boxRef.current
     if (!canvas || !box) return
-    const { features: f, result: r, overlayOn: on } = live.current
+    const { features: f, result: r, overlayOn: on, layers: ls } = live.current
     const dpr = window.devicePixelRatio || 1
     const cssW = box.clientWidth
     const cssH = box.clientHeight
@@ -67,7 +68,7 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
     ctx.clearRect(0, 0, w, h)
     if (!on || !cssW) return
     ctx.setTransform((w / f.width), 0, 0, (h / f.height), 0, 0)
-    drawOverlay(ctx, f, r, frameAt(t, f), f.width / cssW)
+    drawOverlay(ctx, f, r, frameAt(t, f), f.width / cssW, ls)
   }, [])
 
   // Frame-accurate sync: requestVideoFrameCallback when available, else requestAnimationFrame.
@@ -113,7 +114,7 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
 
   useEffect(() => {
     paint(videoRef.current?.currentTime ?? 0)
-  }, [overlayOn, paint])
+  }, [overlayOn, layers, paint])
 
   const seek = (t: number) => {
     const v = videoRef.current
@@ -226,7 +227,7 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
           }}
           onCue={showCue}
         />
-        {overlayOn && <Legend tapped={result.holds?.tapped_id != null} />}
+        {overlayOn && <Legend layers={layers} tapped={result.holds?.tapped_id != null && layers.has('reach')} />}
       </div>
 
       {actions && <div className="result-actions">{actions}</div>}
@@ -290,13 +291,18 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
   )
 }
 
-function Legend({ tapped }: { tapped: boolean }) {
+function Legend({ layers, tapped }: { layers: Set<Layer>; tapped: boolean }) {
+  const angles = (['elbow', 'knee', 'hip'] as const).filter((j) => layers.has(j))
+  const ANGLE_NAME = { elbow: 'Elbow', knee: 'Knee', hip: 'Hip (thigh to body)' }
   return (
     <ul className="legend" aria-label="Overlay legend">
       <li><i className="sw cog" />Center of gravity + last 1 s</li>
-      <li><i className="sw base" />Base of support (dashed = center outside)</li>
-      <li><i className="sw reach" />Reach to target hold</li>
+      {layers.has('plumb') && <li><i className="sw plumb" />Straight down from center</li>}
+      {layers.has('reach') && <li><i className="sw reach" />Reach to target hold</li>}
       {tapped && <li><i className="sw tapped" />Hold you tapped</li>}
+      {angles.length > 0 && (
+        <li><i className="sw angle" />{angles.map((j) => ANGLE_NAME[j]).join(', ')} angle (180° = straight)</li>
+      )}
     </ul>
   )
 }

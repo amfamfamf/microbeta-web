@@ -269,7 +269,8 @@ input[type='email'], select, .share-url {
   content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--ov-cog);
   box-shadow: 0 0 0 1px var(--ov-outline);
 }
-.sw.base::after { content: ''; position: absolute; left: 2px; right: 2px; top: 6px; height: 3px; background: var(--ov-skel); }
+.sw.plumb::after { content: ''; position: absolute; left: 6px; top: 1px; bottom: 1px; border-left: 2px dashed var(--ov-cog); }
+.sw.angle::after { content: ''; position: absolute; inset: 2px; border: 2px solid var(--ov-cog); border-radius: 50%; border-left-color: transparent; border-bottom-color: transparent; }
 .sw.reach::after { content: '→'; position: absolute; inset: 0; color: var(--ov-reach); font: 700 12px/14px var(--font-ui); text-align: center; }
 .sw.tapped::after { content: ''; position: absolute; inset: 2px; border: 2px solid var(--ov-cog); border-radius: 50%; }
 

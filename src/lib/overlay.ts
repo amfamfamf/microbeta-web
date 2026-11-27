@@ -1,4 +1,4 @@
-import { LIMBS, type FeaturesJson, type LimbName, type Point, type ResultJson } from './types'
+import { type Cue, type FeaturesJson, type LimbName, type Point, type ResultJson } from './types'
 
 /**
  * Overlay colors from the Mono ice design system (DESIGN.md, tokens --ov-*).
@@ -12,8 +12,6 @@ export const COLORS = {
   cogPath: '142,227,255',
   cogGlow: 'rgba(142,227,255,0.9)',
   plumb: 'rgba(142,227,255,0.95)',
-  baseIn: '#FFFFFF', // solid bar: COG over the base
-  baseOut: '#B2B2B2', // --ov-fall, dashed bar: COG outside the base
   reach: '#FFFFFF', // --ov-reach
   target: '#FFFFFF',
   tapped: '#8EE3FF',
@@ -23,6 +21,52 @@ export const COLORS = {
 }
 
 const MIN_SCORE = 0.3
+
+/** Face points (nose, eyes, ears, top of head) are not drawn: no rule uses them and they clutter the head. */
+const HIDDEN = new Set(['nose', 'l_eye', 'r_eye', 'l_ear', 'r_ear', 'head'])
+
+/**
+ * Optional layers. The skeleton and the center of gravity (COG) always show; the rest show only when
+ * the selected cue is about them, so the screen shows one idea at a time.
+ */
+export type Layer = 'plumb' | 'reach' | 'elbow' | 'knee' | 'hip'
+
+const CATEGORY_LAYERS: Record<string, Layer[]> = {
+  Swing: ['plumb'],
+  'Barn-door': ['plumb'],
+  'Body position': ['plumb'],
+  Hips: ['plumb', 'hip'],
+  Feet: ['plumb'],
+  Tension: ['knee'],
+  Arms: ['elbow'],
+  Coordination: ['elbow', 'knee'],
+  Reach: ['reach'],
+  Timing: ['reach'],
+  Commitment: ['reach'],
+  Compression: ['reach', 'hip'],
+  Mantle: ['reach'],
+  Head: ['reach'],
+  'Load direction': ['reach'],
+}
+const EVIDENCE_LAYERS: [string, Layer][] = [
+  ['elbow_angle', 'elbow'],
+  ['knee_angle', 'knee'],
+  ['hip_angle', 'hip'],
+]
+
+export function layersFor(cue: Cue | undefined): Set<Layer> {
+  if (!cue) return new Set<Layer>(['plumb', 'reach'])
+  const out = new Set<Layer>(CATEGORY_LAYERS[cue.category] ?? ['reach'])
+  for (const [key, layer] of EVIDENCE_LAYERS) if (cue.evidence?.[key] != null) out.add(layer)
+  return out
+}
+
+/** Joint angles: [first, vertex, last] keypoint names per side. Hip = thigh-to-torso (neck–hip–knee). */
+const ANGLES: Record<'elbow' | 'knee' | 'hip', [string, string, string][]> = {
+  elbow: [['l_shoulder', 'l_elbow', 'l_wrist'], ['r_shoulder', 'r_elbow', 'r_wrist']],
+  knee: [['l_hip', 'l_knee', 'l_ankle'], ['r_hip', 'r_knee', 'r_ankle']],
+  hip: [['neck', 'l_hip', 'l_knee'], ['neck', 'r_hip', 'r_knee']],
+}
 const EVENT_LABEL: Record<string, string> = {
   foot_cut: 'Foot cut',
   release: 'Release',
@@ -95,50 +139,18 @@ export function drawOverlay(
   r: ResultJson,
   i: number,
   unit: number,
+  layers: Set<Layer> = new Set(['plumb', 'reach']),
 ) {
   const lw = (px: number) => px * unit
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
-  // Base of support: span of the limbs that are on the wall, as a band at their height.
-  const on: Point[] = []
-  for (const limb of LIMBS) {
-    const p = f.limbs[limb]?.[i]
-    if (p && hasContact(f, limb, i)) on.push(p)
-  }
+  // Base of support is computed for the rules (contacts) but never drawn.
   const cog = f.cog[i]
-  if (on.length) {
-    const pad = lw(10)
-    const xs = on.map((p) => p[0])
-    const ys = on.map((p) => p[1])
-    const x0 = Math.min(...xs) - pad
-    const x1 = Math.max(...xs) + pad
-    const y1 = Math.max(...ys) + pad
-    const inside = cog ? cog[0] >= x0 && cog[0] <= x1 : true
-    // Bar under the lowest contact, with end caps. Solid = COG over the base, dashed grey = outside.
-    const y = y1
-    ctx.setLineDash(inside ? [] : [lw(6), lw(5)])
-    ctx.strokeStyle = COLORS.outline
-    ctx.lineWidth = lw(6)
-    ctx.beginPath()
-    ctx.moveTo(x0, y)
-    ctx.lineTo(x1, y)
-    ctx.stroke()
-    ctx.strokeStyle = inside ? COLORS.baseIn : COLORS.baseOut
-    ctx.lineWidth = lw(3.5)
-    ctx.stroke()
-    ctx.setLineDash([])
-    ctx.beginPath()
-    ctx.moveTo(x0, y - lw(7))
-    ctx.lineTo(x0, y + lw(7))
-    ctx.moveTo(x1, y - lw(7))
-    ctx.lineTo(x1, y + lw(7))
-    ctx.stroke()
-  }
 
   // Hold the user tapped (v1.1): solid outline just outside the hold box.
   const tappedId = r.holds?.tapped_id
-  if (tappedId != null) {
+  if (layers.has('reach') && tappedId != null) {
     const h = r.holds?.holds.find((x) => x.id === tappedId)
     if (h) {
       ctx.strokeStyle = COLORS.tapped
@@ -149,7 +161,7 @@ export function drawOverlay(
 
   // Target hold + reach vector near the fall.
   const t = r.target_hold
-  if (t) {
+  if (layers.has('reach') && t) {
     const near = nearFall(r, f, i)
     ctx.globalAlpha = near ? 1 : 0.5
     ctx.strokeStyle = COLORS.outline
@@ -177,11 +189,13 @@ export function drawOverlay(
 
   // Skeleton.
   const kp = f.keypoints[i]
+  const hidden = (j: number) => HIDDEN.has(f.keypoint_names[j])
   if (kp) {
     ctx.beginPath()
     for (const [a, b] of f.edges) {
       const pa = kp[a]
       const pb = kp[b]
+      if (hidden(a) || hidden(b)) continue
       if (!pa || !pb || pa[2] < MIN_SCORE || pb[2] < MIN_SCORE) continue
       ctx.moveTo(pa[0], pa[1])
       ctx.lineTo(pb[0], pb[1])
@@ -195,12 +209,20 @@ export function drawOverlay(
     ctx.fillStyle = COLORS.joint
     ctx.strokeStyle = COLORS.outline
     ctx.lineWidth = lw(1.25)
-    for (const p of kp) {
-      if (!p || p[2] < MIN_SCORE) continue
+    kp.forEach((p, j) => {
+      if (!p || p[2] < MIN_SCORE || hidden(j)) return
       ctx.beginPath()
       ctx.arc(p[0], p[1], lw(2.75), 0, Math.PI * 2)
       ctx.fill()
       ctx.stroke()
+    })
+    for (const joint of ['elbow', 'knee', 'hip'] as const) {
+      if (!layers.has(joint)) continue
+      for (const names of ANGLES[joint]) {
+        // Hips sit close together: push each hip label sideways, away from the other hip.
+        const other = joint === 'hip' ? (names[1] === 'l_hip' ? 'r_hip' : 'l_hip') : undefined
+        drawAngle(ctx, f, kp, names, lw, other)
+      }
     }
   }
 
@@ -218,7 +240,7 @@ export function drawOverlay(
     ctx.lineTo(b[0], b[1])
     ctx.stroke()
   }
-  if (cog) {
+  if (cog && layers.has('plumb')) {
     ctx.strokeStyle = COLORS.plumb
     ctx.lineWidth = lw(1.5)
     ctx.setLineDash([lw(5), lw(5)])
@@ -227,6 +249,8 @@ export function drawOverlay(
     ctx.lineTo(cog[0], f.height)
     ctx.stroke()
     ctx.setLineDash([])
+  }
+  if (cog) {
     ctx.save()
     ctx.shadowColor = COLORS.cogGlow
     ctx.shadowBlur = lw(10)
@@ -254,4 +278,57 @@ export function drawOverlay(
     ctx.textBaseline = 'middle'
     ctx.fillText(label, lw(18), lw(23))
   }
+}
+
+type Kp = NonNullable<FeaturesJson['keypoints'][number]>
+
+/** Arc at the joint plus a label such as "112°" (180° = straight), placed outside the angle. */
+function drawAngle(
+  ctx: CanvasRenderingContext2D,
+  f: FeaturesJson,
+  kp: Kp,
+  [na, nb, nc]: [string, string, string],
+  lw: (px: number) => number,
+  awayFrom?: string,
+) {
+  const pt = (n: string) => {
+    const p = kp[f.keypoint_names.indexOf(n)]
+    return p && p[2] >= MIN_SCORE ? p : null
+  }
+  const a = pt(na)
+  const b = pt(nb)
+  const c = pt(nc)
+  if (!a || !b || !c) return
+  const a1 = Math.atan2(a[1] - b[1], a[0] - b[0])
+  const a2 = Math.atan2(c[1] - b[1], c[0] - b[0])
+  let d = a2 - a1
+  while (d > Math.PI) d -= 2 * Math.PI
+  while (d < -Math.PI) d += 2 * Math.PI
+  const deg = Math.round(Math.abs((d * 180) / Math.PI))
+  const rad = lw(16)
+  ctx.strokeStyle = COLORS.outline
+  ctx.lineWidth = lw(4.5)
+  ctx.beginPath()
+  ctx.arc(b[0], b[1], rad, a1, a1 + d, d < 0)
+  ctx.stroke()
+  ctx.strokeStyle = COLORS.cog
+  ctx.lineWidth = lw(2.5)
+  ctx.stroke()
+  // Label on the far side of the bisector, away from the limbs.
+  const away = awayFrom ? pt(awayFrom) : null
+  const mid = away ? (b[0] >= away[0] ? 0 : Math.PI) : a1 + d / 2 + Math.PI
+  const lx = b[0] + Math.cos(mid) * lw(away ? 40 : 30)
+  const ly = b[1] + Math.sin(mid) * lw(away ? 40 : 30)
+  const label = `${deg}°`
+  ctx.font = `600 ${lw(13)}px ${COLORS.font}`
+  const w = ctx.measureText(label).width + lw(10)
+  ctx.fillStyle = COLORS.labelBg
+  ctx.beginPath()
+  ctx.roundRect(lx - w / 2, ly - lw(10), w, lw(20), lw(10))
+  ctx.fill()
+  ctx.fillStyle = COLORS.label
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(label, lx, ly + lw(0.5))
+  ctx.textAlign = 'start'
 }

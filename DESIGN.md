@@ -27,7 +27,9 @@ When the artifact changes: update `tokens.css` first, then components, then this
 
 **Video overlay (same in both themes):** skeleton `#FFF`, COG `#8EE3FF` with glow, reach `#FFF`,
 fall/outside `#B2B2B2`, outline `#06283A`. Line style always differs as well as color
-(plumb = dashed, base outside = dashed, target hold = thick outline, tapped hold = ice outline).
+(plumb = dashed, target hold = thick outline, tapped hold = ice outline, joint angle = ice arc + label).
+Overlay layers: skeleton (no face points) and COG always; plumb line, reach/target and joint angles only for the
+selected cue (`layersFor` in `src/lib/overlay.ts`). Base of support is never drawn.
 
 Rules:
 - Ice 300 is never text on a light background. On light screens it always has a Deep 900 outline or Deep 900 text on it.
