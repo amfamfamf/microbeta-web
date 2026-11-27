@@ -346,21 +346,50 @@ fieldset.card legend { float: left; padding: 0; }
 .swatch { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(6, 40, 58, 0.35); flex: none; }
 .chip.on .swatch { box-shadow: 0 0 0 2px var(--on-primary); }
 
-/* Wall angle slider */
-.wall-angle { display: flex; flex-direction: column; gap: 8px; }
-.wall-readout { display: flex; align-items: center; gap: 14px; background: var(--surface); border-radius: var(--r-inner); padding: 8px 12px; }
-.wall-readout p { margin: 0; }
-.wall-name { font: 600 19px/25px var(--font-ui); }
-.wall-deg { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
-.wall-readout.unset .wall-name { color: var(--text-muted); }
-.wall-pic { flex: none; }
-.wall-line { stroke: var(--text); stroke-width: 6; stroke-linecap: round; transition: all var(--motion-fast) ease; }
-.wall-readout.unset .wall-line { stroke: var(--text-muted); stroke-dasharray: 6 6; }
-.wall-cog { fill: var(--cog); stroke: var(--ov-outline); stroke-width: 1.5; }
-.wall-plumb { stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 3 3; }
-.range { width: 100%; height: 44px; margin: 0; accent-color: var(--primary); cursor: pointer; }
-.range.unset { opacity: 0.6; }
-.range-ticks { position: relative; height: 20px; margin: -6px 10px 0; }
-.range-ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
-.range-ticks span:first-child { transform: none; }
-.range-ticks span:last-child { transform: translateX(-100%); }
+
+/* Required tag + "Let AI guess" chip */
+.req { font: 500 11px/14px var(--font-ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text); }
+.guess-chip { align-self: flex-start; }
+.guess-cost { font-weight: 400; opacity: 0.75; }
+
+/* Wall angle picker (5° steps) */
+.wall-angle { display: flex; flex-direction: column; gap: 6px; }
+.wall-angle p { margin: 0; }
+.wall-pic { width: 100%; max-width: 260px; height: auto; align-self: center; margin-top: 4px; }
+.wall-floor { stroke: var(--text); stroke-width: 5; stroke-linecap: round; }
+.wall-line { fill: none; stroke: var(--text); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.wall-ref { stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 5; }
+.wall-angle.unset .wall-line { stroke: var(--text-muted); stroke-dasharray: 8 8; }
+.wall-deg-big { text-align: center; font: 600 44px/48px var(--font-ui); font-variant-numeric: tabular-nums; }
+.wall-name { text-align: center; font: 600 17px/22px var(--font-ui); }
+.wall-angle.unset .wall-deg-big, .wall-angle.unset .wall-name { color: var(--text-muted); }
+
+.range-dots {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 44px; margin: 8px 0 0; background: transparent; cursor: pointer;
+  --track: 8px;
+}
+.range-dots:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-pill); }
+/* Track: filled part in the brand ice, then one dot per 5°. */
+.range-dots::-webkit-slider-runnable-track {
+  height: var(--track); border-radius: var(--r-pill);
+  background:
+    radial-gradient(circle, var(--text-muted) 0 1.5px, transparent 2px) 0 50% / calc((100% - 8px) / (var(--ticks) - 1)) 100% repeat-x,
+    linear-gradient(var(--cog), var(--cog)) 0 0 / var(--pct) 100% no-repeat;
+  background-origin: content-box; padding: 0 4px; box-sizing: border-box;
+}
+.range-dots::-moz-range-track {
+  height: var(--track); border-radius: var(--r-pill);
+  background: radial-gradient(circle, var(--text-muted) 0 1.5px, transparent 2px) 0 50% / calc(100% / (var(--ticks) - 1)) 100% repeat-x;
+}
+.range-dots::-moz-range-progress { height: var(--track); border-radius: var(--r-pill); background: var(--cog); }
+.range-dots::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 30px; height: 30px; margin-top: calc((var(--track) - 30px) / 2);
+  border-radius: 50%; background: var(--cog); box-shadow: 0 0 0 2px var(--ov-outline), 0 0 10px rgba(142, 227, 255, 0.8);
+}
+.range-dots::-moz-range-thumb {
+  width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--cog);
+  box-shadow: 0 0 0 2px var(--ov-outline), 0 0 10px rgba(142, 227, 255, 0.8);
+}
+.wall-angle.unset .range-dots::-webkit-slider-thumb { background: var(--surface); }
+.wall-angle.unset .range-dots::-moz-range-thumb { background: var(--surface); }
+.range-ends { display: flex; justify-content: space-between; }

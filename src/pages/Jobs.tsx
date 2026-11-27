@@ -73,7 +73,7 @@ function JobRow({ job }: { job: Job }) {
       <Link to={`/jobs/${job.id}`} className="job-link">
         <div>
           <div className="job-title">{when(job.created_at)}</div>
-          <div className="muted small">{job.wall_hint ? `Wall: ${job.wall_hint}` : 'Wall: app guesses'}</div>
+          <div className="muted small">{job.wall_hint ? `Wall: ${job.wall_hint}` : 'Wall: AI guesses'}</div>
         </div>
         <StatusPill status={job.status} />
       </Link>

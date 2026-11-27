@@ -3,22 +3,25 @@ import type { WallHint } from '../lib/types'
 /** Degrees from vertical: negative = leans away from you (slab), positive = leans over you. */
 export const MIN_DEG = -30
 export const MAX_DEG = 90
+export const STEP_DEG = 5
+
+/** The user's answer: an angle, or 'guess' (let AI guess). null = not answered yet (required). */
+export type WallAnswer = number | 'guess' | null
 
 interface Band {
   hint: WallHint
   name: string
   from: number
   to: number
-  note: string
 }
 
 const BANDS: Band[] = [
-  { hint: 'slab', name: 'Slab', from: MIN_DEG, to: -5, note: 'Leans away from you. Weight on your feet.' },
-  { hint: 'vertical', name: 'Vertical', from: -4, to: 4, note: 'Straight up and down.' },
-  { hint: 'overhang', name: 'Slight overhang', from: 5, to: 24, note: 'Leans over you a little.' },
-  { hint: 'overhang', name: 'Overhang', from: 25, to: 49, note: 'Steep. Keep your hips close to the wall.' },
-  { hint: 'overhang', name: 'Steep overhang', from: 50, to: 69, note: 'Very steep. Toes pull to keep feet on.' },
-  { hint: 'roof', name: 'Roof', from: 70, to: MAX_DEG, note: 'Almost flat above you.' },
+  { hint: 'slab', name: 'Slab', from: MIN_DEG, to: -5 },
+  { hint: 'vertical', name: 'Vertical', from: -4, to: 4 },
+  { hint: 'overhang', name: 'Slight overhang', from: 5, to: 24 },
+  { hint: 'overhang', name: 'Overhang', from: 25, to: 49 },
+  { hint: 'overhang', name: 'Steep overhang', from: 50, to: 69 },
+  { hint: 'roof', name: 'Roof', from: 70, to: MAX_DEG },
 ]
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -26,80 +29,88 @@ export function bandFor(deg: number): Band {
   return BANDS.find((b) => deg >= b.from && deg <= b.to) ?? BANDS[1]
 }
 
-// Each label sits at a typical angle of its band.
-const TICKS: [string, number][] = [
-  ['Slab', MIN_DEG],
-  ['Vertical', 0],
-  ['Overhang', 35],
-  ['Roof', MAX_DEG],
-]
+/** The "Let AI guess" choice, shared by wall angle and hold color. */
+export function GuessChip({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      className={'chip guess-chip' + (on ? ' on' : '')}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      Let AI guess <span className="guess-cost">(decreases accuracy)</span>
+    </button>
+  )
+}
 
 interface Props {
-  value: number | null
-  onChange: (deg: number | null) => void
+  value: WallAnswer
+  onChange: (v: WallAnswer) => void
   disabled?: boolean
 }
 
-/** Wall angle as a degree slider. Untouched (null) = let the app guess. */
+const DEFAULT_DEG = 20 // where the slider sits before the first answer
+
+/** Wall angle in 5° steps, drawn like a board-angle picker. Required: an angle or "Let AI guess". */
 export function WallAngle({ value, onChange, disabled }: Props) {
-  const deg = value ?? 0
+  const set = typeof value === 'number'
+  const guess = value === 'guess'
+  const deg = set ? value : DEFAULT_DEG
   const band = bandFor(deg)
-  // Wall drawing: the wall pivots around its middle; the climber (COG dot) sits on the climbing side.
-  // 0° = vertical, +90° = roof (wall flat above the climber), negative = slab.
+
+  // Drawing: floor, a short kicker, then the wall panel hinged at the kicker's top.
+  // 0° = straight up; +90° = flat above (roof); negative = leaning back (slab).
   const rad = (deg * Math.PI) / 180
-  const mx = 60
-  const my = 44
-  const half = 34
-  const tx = mx + half * Math.sin(rad)
-  const ty = my - half * Math.cos(rad)
-  const bx = mx - half * Math.sin(rad)
-  const by = my + half * Math.cos(rad)
-  const cx = mx + 16 * Math.cos(rad)
-  const cy = my + 16 * Math.sin(rad)
+  const px = 70
+  const py = 110 // kicker top (hinge)
+  const fy = 128 // floor
+  const len = 96
+  const ex = px + len * Math.sin(rad)
+  const ey = py - len * Math.cos(rad)
+  const pct = ((deg - MIN_DEG) / (MAX_DEG - MIN_DEG)) * 100
+  const ticks = (MAX_DEG - MIN_DEG) / STEP_DEG + 1
+
   return (
-    <div className="wall-angle">
+    <div className={'wall-angle' + (set ? '' : ' unset')}>
       <div className="row between">
         <label htmlFor="wall-deg" className="field-label">Wall angle</label>
-        {value == null ? (
-          <span className="muted small">Optional</span>
-        ) : (
-          <button type="button" className="link-btn" disabled={disabled} onClick={() => onChange(null)}>
-            Let the app guess
-          </button>
-        )}
+        <span className="req small">Required</span>
       </div>
-      <div className={'wall-readout' + (value == null ? ' unset' : '')} aria-live="polite">
-        <svg viewBox="0 0 120 92" width="96" height="74" aria-hidden className="wall-pic">
-          <line x1={bx} y1={by} x2={tx} y2={ty} className="wall-line" />
-          <line x1={cx} y1={cy + 5} x2={cx} y2={88} className="wall-plumb" />
-          <circle cx={cx} cy={cy} r="5" className="wall-cog" />
-        </svg>
-        <div>
-          <p className="wall-name">{value == null ? 'Let the app guess' : band.name}</p>
-          <p className="wall-deg">
-            {value == null ? 'Drag to set the angle' : `${deg > 0 ? '+' : ''}${deg}° ${deg === 0 ? '' : deg < 0 ? 'past vertical, away' : 'past vertical, over you'}`}
-          </p>
-          {value != null && <p className="muted small">{band.note}</p>}
-        </div>
-      </div>
+
+      <svg viewBox="0 0 220 140" className="wall-pic" aria-hidden>
+        <line x1={px} y1={fy} x2={px} y2={14} className="wall-ref" />
+        <line x1={px - 30} y1={fy} x2={208} y2={fy} className="wall-floor" />
+        <polyline points={`${px},${fy} ${px},${py} ${ex},${ey}`} className="wall-line" />
+      </svg>
+
+      <p className="wall-deg-big" aria-live="polite">
+        {guess ? 'AI' : set ? `${deg}°` : '—'}
+      </p>
+      <p className="wall-name">{guess ? 'AI will guess the angle' : set ? band.name : 'Drag to set the angle'}</p>
+
       <input
         id="wall-deg"
         type="range"
         min={MIN_DEG}
         max={MAX_DEG}
-        step={1}
+        step={STEP_DEG}
         value={deg}
         disabled={disabled}
-        aria-valuetext={value == null ? 'Not set' : `${deg} degrees, ${band.name}`}
+        aria-valuetext={set ? `${deg} degrees, ${band.name}` : 'Not set'}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={'range' + (value == null ? ' unset' : '')}
+        onPointerDown={() => !set && onChange(deg)}
+        className="range-dots"
+        style={{ ['--pct' as string]: `${set ? pct : 0}%`, ['--ticks' as string]: ticks }}
       />
-      <div className="range-ticks small muted" aria-hidden>
-        {TICKS.map(([label, at]) => (
-          <span key={label} style={{ left: `${((at - MIN_DEG) / (MAX_DEG - MIN_DEG)) * 100}%` }}>
-            {label}
-          </span>
-        ))}
+      <div className="range-ends small muted" aria-hidden>
+        <span>−30° slab</span>
+        <span>90° roof</span>
+      </div>
+
+      <div role="radiogroup" aria-label="Or">
+        <GuessChip on={guess} disabled={disabled} onClick={() => onChange(guess ? null : 'guess')} />
       </div>
     </div>
   )

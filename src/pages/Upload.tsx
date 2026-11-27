@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AddVideo } from '../components/AddVideo'
-import { bandFor, WallAngle } from '../components/WallAngle'
+import { bandFor, GuessChip, WallAngle, type WallAnswer } from '../components/WallAngle'
 import { ErrorBox } from '../components/Layout'
 import { startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -35,8 +35,10 @@ export function Upload() {
   const [file, setFile] = useState<File | null>(null)
   const [fileErr, setFileErr] = useState<string | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
-  const [wallDeg, setWallDeg] = useState<number | null>(null)
-  const [holdColor, setHoldColor] = useState<HoldColor | null>(null)
+  // Both are required: a value, or 'guess' (let AI guess). null = not answered yet.
+  const [wall, setWall] = useState<WallAnswer>(null)
+  const [holdColor, setHoldColor] = useState<HoldColor | 'guess' | null>(null)
+  const answered = wall !== null && holdColor !== null
   const [target, setTarget] = useState<TargetHint | null>(null)
   const [targetSkipped, setTargetSkipped] = useState(false)
   const [phase, setPhase] = useState<Phase>('pick')
@@ -103,10 +105,10 @@ export function Upload() {
           user_id: session.user.id,
           status: 'uploaded',
           video_path: path,
-          wall_hint: wallDeg == null ? null : bandFor(wallDeg).hint,
-          wall_angle_deg: wallDeg,
+          wall_hint: typeof wall === 'number' ? bandFor(wall).hint : null,
+          wall_angle_deg: typeof wall === 'number' ? wall : null,
           target_hint: target,
-          hold_color: holdColor,
+          hold_color: holdColor === 'guess' ? null : holdColor,
           ...(duration != null && duration > 0 ? { duration_s: Math.min(61, Math.round(duration * 10) / 10) } : {}),
         })
         if (insErr) throw new Error('We could not create the job. Check your connection, then tap “Upload” again.')
@@ -228,7 +230,7 @@ export function Upload() {
       <fieldset className="card hold-colors" disabled={busy || hasJob}>
         <div className="row between">
           <legend className="field-label">Hold color</legend>
-          <span className="muted small">Optional</span>
+          <span className="req small">Required</span>
         </div>
         <p className="muted small">The color of the holds on your problem. It helps the app find them.</p>
         <div className="chip-row" role="radiogroup" aria-label="Hold color">
@@ -239,26 +241,18 @@ export function Upload() {
               role="radio"
               aria-checked={holdColor === c.value}
               className={'chip color-chip' + (holdColor === c.value ? ' on' : '')}
-              onClick={() => setHoldColor(holdColor === c.value ? null : c.value)}
+              onClick={() => setHoldColor(c.value)}
             >
               <i className="swatch" style={{ background: c.swatch }} aria-hidden />
               {c.label}
             </button>
           ))}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={holdColor === null}
-            className={'chip' + (holdColor === null ? ' on' : '')}
-            onClick={() => setHoldColor(null)}
-          >
-            Not sure
-          </button>
+          <GuessChip on={holdColor === 'guess'} onClick={() => setHoldColor('guess')} />
         </div>
       </fieldset>
 
       <div className="card">
-        <WallAngle value={wallDeg} onChange={setWallDeg} disabled={busy || hasJob} />
+        <WallAngle value={wall} onChange={setWall} disabled={busy || hasJob} />
       </div>
 
       <p className="privacy small">
@@ -287,9 +281,20 @@ export function Upload() {
       {error && <ErrorBox message={error} />}
 
       {file && (
-        <button type="button" className="btn wide" disabled={busy} onClick={run}>
-          {phase === 'error' ? 'Try again' : 'Upload and analyze'}
-        </button>
+        <>
+          {!answered && (
+            <p className="muted small center-text" role="status">
+              {wall === null && holdColor === null
+                ? 'Pick the hold color and wall angle, or let AI guess.'
+                : holdColor === null
+                  ? 'Pick the hold color, or let AI guess.'
+                  : 'Set the wall angle, or let AI guess.'}
+            </p>
+          )}
+          <button type="button" className="btn wide" disabled={busy || !answered} onClick={run}>
+            {phase === 'error' ? 'Try again' : 'Upload and analyze'}
+          </button>
+        </>
       )}
       {hasJob && phase === 'error' && (
         <p className="muted small">
