@@ -71,17 +71,25 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
     drawOverlay(ctx, f, r, frameAt(t, f), f.width / cssW, ls)
   }, [])
 
-  // Frame-accurate sync: requestVideoFrameCallback when available, else requestAnimationFrame.
+  // Frame-accurate sync: repaint once per video frame (see the two clocks below).
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
     let stopped = false
     let vfc = 0
     let raf = 0
-    const tick = (t: number) => {
+    let lastFrame = -1
+    const fpsOf = () => live.current.features.fps || 30
+    const tick = (t: number, force = false) => {
+      const frame = Math.floor(t * fpsOf() + 0.01)
+      if (!force && frame === lastFrame) return
+      lastFrame = frame
       paint(t)
       setTime(t)
     }
+    // Two clocks. requestVideoFrameCallback gives the exact time of each frame the browser shows. Some phones
+    // (iPhone Safari, Low Power Mode) skip those callbacks, which left the skeleton still on every other frame,
+    // so an animation-frame loop also repaints whenever the frame under currentTime changes.
     if (typeof v.requestVideoFrameCallback === 'function') {
       const cb = (_now: number, meta: { mediaTime: number }) => {
         if (stopped) return
@@ -89,15 +97,14 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
         vfc = v.requestVideoFrameCallback!(cb)
       }
       vfc = v.requestVideoFrameCallback(cb)
-    } else {
-      const loop = () => {
-        if (stopped) return
-        tick(v.currentTime)
-        raf = requestAnimationFrame(loop)
-      }
+    }
+    const loop = () => {
+      if (stopped) return
+      if (!v.paused) tick(v.currentTime)
       raf = requestAnimationFrame(loop)
     }
-    const onSeeked = () => tick(v.currentTime)
+    raf = requestAnimationFrame(loop)
+    const onSeeked = () => tick(v.currentTime, true)
     v.addEventListener('seeked', onSeeked)
     v.addEventListener('loadeddata', onSeeked)
     const ro = new ResizeObserver(() => paint(v.currentTime))

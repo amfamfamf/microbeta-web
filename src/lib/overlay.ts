@@ -79,7 +79,9 @@ const EVENT_LABEL: Record<string, string> = {
 export function frameAt(time: number, f: FeaturesJson): number {
   const n = f.keypoints.length
   if (!n) return 0
-  return Math.max(0, Math.min(n - 1, Math.round(time * f.fps)))
+  // Frame i is on screen from i/fps until (i+1)/fps, so floor, not round. The small epsilon absorbs float error
+  // in the browser's frame timestamps (30.99999 must read as frame 31).
+  return Math.max(0, Math.min(n - 1, Math.floor(time * f.fps + 0.01)))
 }
 
 function hasContact(f: FeaturesJson, limb: LimbName, i: number): boolean {
