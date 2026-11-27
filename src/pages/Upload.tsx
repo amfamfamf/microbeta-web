@@ -7,7 +7,7 @@ import { useAuth } from '../lib/auth'
 import { MAX_BYTES, MAX_SECONDS } from '../lib/env'
 import { requireSupabase } from '../lib/supabase'
 import { TargetPicker } from '../components/TargetPicker'
-import type { TargetHint, WallHint } from '../lib/types'
+import type { HoldColor, TargetHint, WallHint } from '../lib/types'
 import { extensionFor, readDuration, UploadAborted, uploadResumable } from '../lib/upload'
 
 type Phase = 'pick' | 'creating' | 'uploading' | 'starting' | 'error'
@@ -20,6 +20,20 @@ const WALLS: { value: '' | WallHint; label: string }[] = [
   { value: 'roof', label: 'Roof' },
 ]
 
+// Swatch colors are for the picker only (hold colors, not brand colors). Every chip also has its name.
+const HOLD_COLORS: { value: HoldColor; label: string; swatch: string }[] = [
+  { value: 'red', label: 'Red', swatch: '#D7263D' },
+  { value: 'orange', label: 'Orange', swatch: '#F28C28' },
+  { value: 'yellow', label: 'Yellow', swatch: '#F5D000' },
+  { value: 'green', label: 'Green', swatch: '#2FA84F' },
+  { value: 'blue', label: 'Blue', swatch: '#2563EB' },
+  { value: 'purple', label: 'Purple', swatch: '#7C3AED' },
+  { value: 'pink', label: 'Pink', swatch: '#EC4899' },
+  { value: 'black', label: 'Black', swatch: '#111111' },
+  { value: 'white', label: 'White', swatch: '#FFFFFF' },
+  { value: 'grey', label: 'Grey', swatch: '#8A8F98' },
+]
+
 export function Upload() {
   const { session } = useAuth()
   const nav = useNavigate()
@@ -28,6 +42,7 @@ export function Upload() {
   const [fileErr, setFileErr] = useState<string | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
   const [wall, setWall] = useState<'' | WallHint>('')
+  const [holdColor, setHoldColor] = useState<HoldColor | null>(null)
   const [target, setTarget] = useState<TargetHint | null>(null)
   const [targetSkipped, setTargetSkipped] = useState(false)
   const [phase, setPhase] = useState<Phase>('pick')
@@ -96,6 +111,7 @@ export function Upload() {
           video_path: path,
           wall_hint: wall || null,
           target_hint: target,
+          hold_color: holdColor,
           ...(duration != null && duration > 0 ? { duration_s: Math.min(61, Math.round(duration * 10) / 10) } : {}),
         })
         if (insErr) throw new Error('We could not create the job. Check your connection, then tap “Upload” again.')
@@ -213,6 +229,38 @@ export function Upload() {
           )}
         </div>
       )}
+
+      <fieldset className="card hold-colors" disabled={busy || hasJob}>
+        <div className="row between">
+          <legend className="field-label">Hold color</legend>
+          <span className="muted small">Optional</span>
+        </div>
+        <p className="muted small">The color of the holds on your problem. It helps the app find them.</p>
+        <div className="chip-row" role="radiogroup" aria-label="Hold color">
+          {HOLD_COLORS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              role="radio"
+              aria-checked={holdColor === c.value}
+              className={'chip color-chip' + (holdColor === c.value ? ' on' : '')}
+              onClick={() => setHoldColor(holdColor === c.value ? null : c.value)}
+            >
+              <i className="swatch" style={{ background: c.swatch }} aria-hidden />
+              {c.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            role="radio"
+            aria-checked={holdColor === null}
+            className={'chip' + (holdColor === null ? ' on' : '')}
+            onClick={() => setHoldColor(null)}
+          >
+            Not sure
+          </button>
+        </div>
+      </fieldset>
 
       <div className="card">
         <label htmlFor="wall" className="field-label">Wall angle</label>

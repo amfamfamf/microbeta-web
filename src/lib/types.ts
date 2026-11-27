@@ -11,6 +11,8 @@ export type WallHint = 'slab' | 'vertical' | 'overhang' | 'roof'
 
 export type QualityCheckId = 'frame_rate' | 'full_body' | 'target_hold'
 
+export type HoldColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'black' | 'white' | 'grey'
+
 export interface QualityCheck {
   id: QualityCheckId
   ok: boolean
@@ -33,6 +35,8 @@ export interface Job {
   target_hint: TargetHint | null
   /** v1.2: upload quality check, written by the worker. */
   quality?: QualityReport | null
+  /** v1.2: the color of the problem's holds, picked at upload. */
+  hold_color?: HoldColor | null
   /** v1.2: clip length in seconds, read by the browser before upload. */
   duration_s?: number | null
   created_at: string
@@ -91,7 +95,7 @@ export interface ResultJson {
     tapped_id?: number | null
   } | null
   /** v1.1, informational. */
-  camera?: { moved: boolean; max_shift_px: number; jitter_px: number }
+  camera?: { moved: boolean; max_shift_px: number | null; jitter_px: number | null; checked?: number }
   /** v1.1: filming tips, always an array (optional here for v1 results). */
   warnings?: string[]
   cues: Cue[]
