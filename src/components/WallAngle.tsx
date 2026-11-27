@@ -49,12 +49,35 @@ interface Props {
   value: WallAnswer
   onChange: (v: WallAnswer) => void
   disabled?: boolean
+  /** Shown under the band name when the value came from the user's last upload. */
+  remembered?: boolean
 }
 
-const DEFAULT_DEG = 20 // where the slider sits before the first answer
+const DEFAULT_DEG = 10 // where the slider sits before the first answer
+const LAST_KEY = 'mb.lastWallDeg'
+
+/** The user's last wall angle on this device, or null. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function readLastWallDeg(): number | null {
+  try {
+    const v = Number(localStorage.getItem(LAST_KEY))
+    return localStorage.getItem(LAST_KEY) != null && Number.isFinite(v) && v >= MIN_DEG && v <= MAX_DEG ? v : null
+  } catch {
+    return null
+  }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function saveLastWallDeg(deg: number) {
+  try {
+    localStorage.setItem(LAST_KEY, String(deg))
+  } catch {
+    /* private mode: nothing to remember */
+  }
+}
 
 /** Wall angle in 5° steps, drawn like a board-angle picker. Required: an angle or "Let AI guess". */
-export function WallAngle({ value, onChange, disabled }: Props) {
+export function WallAngle({ value, onChange, disabled, remembered }: Props) {
   const set = typeof value === 'number'
   const guess = value === 'guess'
   const deg = set ? value : DEFAULT_DEG
@@ -89,6 +112,7 @@ export function WallAngle({ value, onChange, disabled }: Props) {
         {guess ? 'AI' : set ? `${deg}°` : '—'}
       </p>
       <p className="wall-name">{guess ? 'AI will guess the angle' : set ? band.name : 'Drag to set the angle'}</p>
+      {set && remembered && <p className="muted small center-text">Same as your last video</p>}
 
       <input
         id="wall-deg"

@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AddVideo } from '../components/AddVideo'
-import { bandFor, GuessChip, WallAngle, type WallAnswer } from '../components/WallAngle'
+import {
+  bandFor,
+  GuessChip,
+  readLastWallDeg,
+  saveLastWallDeg,
+  WallAngle,
+  type WallAnswer,
+} from '../components/WallAngle'
 import { ErrorBox } from '../components/Layout'
 import { startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -36,9 +43,40 @@ export function Upload() {
   const [fileErr, setFileErr] = useState<string | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
   // Both are required: a value, or 'guess' (let AI guess). null = not answered yet.
-  const [wall, setWall] = useState<WallAnswer>(null)
+  // Start from the user's last wall angle (this device first, then their last job), else unanswered at 10°.
+  const [wall, setWallRaw] = useState<WallAnswer>(() => readLastWallDeg())
+  const [wallRemembered, setWallRemembered] = useState(() => readLastWallDeg() != null)
+  const wallTouched = useRef(false)
+  const setWall = (v: WallAnswer) => {
+    wallTouched.current = true
+    setWallRemembered(false)
+    setWallRaw(v)
+  }
   const [holdColor, setHoldColor] = useState<HoldColor | 'guess' | null>(null)
   const answered = wall !== null && holdColor !== null
+
+  // Another device: take the angle from the user's last job that has one.
+  useEffect(() => {
+    if (!session || readLastWallDeg() != null) return
+    let cancelled = false
+    requireSupabase()
+      .from('jobs')
+      .select('wall_angle_deg')
+      .eq('user_id', session.user.id)
+      .not('wall_angle_deg', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        const deg = (data?.[0] as { wall_angle_deg?: number } | undefined)?.wall_angle_deg
+        if (!cancelled && !wallTouched.current && typeof deg === 'number') {
+          setWallRaw(deg)
+          setWallRemembered(true)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [session])
   const [target, setTarget] = useState<TargetHint | null>(null)
   const [targetSkipped, setTargetSkipped] = useState(false)
   const [phase, setPhase] = useState<Phase>('pick')
@@ -98,6 +136,7 @@ export function Upload() {
       // 1. Create the job row (once; a retry reuses it).
       if (!jobRef.current) {
         setPhase('creating')
+        if (typeof wall === 'number') saveLastWallDeg(wall)
         const id = crypto.randomUUID()
         const path = `${session.user.id}/${id}/original.${extensionFor(file)}`
         const { error: insErr } = await sb.from('jobs').insert({
@@ -252,7 +291,7 @@ export function Upload() {
       </fieldset>
 
       <div className="card">
-        <WallAngle value={wall} onChange={setWall} disabled={busy || hasJob} />
+        <WallAngle value={wall} onChange={setWall} disabled={busy || hasJob} remembered={wallRemembered} />
       </div>
 
       <p className="privacy small">
