@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { AddVideo } from '../components/AddVideo'
 import { ErrorBox, Spinner } from '../components/Layout'
 import { ResultView } from '../components/ResultView'
 import { ShareButton } from '../components/ShareButton'
@@ -7,7 +8,7 @@ import { fetchJson, startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useJob } from '../lib/jobs'
 import { objectPath, requireSupabase } from '../lib/supabase'
-import type { CueFeedbackRow, FeaturesJson, FeedbackApi, Job, ResultJson, ResultsRow } from '../lib/types'
+import type { CueFeedbackRow, FeaturesJson, FeedbackApi, Job, QualityReport, ResultJson, ResultsRow } from '../lib/types'
 import { StatusPill } from './Jobs'
 
 const STEPS: Job['status'][] = ['uploaded', 'analyzing', 'ready']
@@ -45,12 +46,7 @@ function StatusSteps({ job }: { job: Job }) {
           </li>
         ))}
       </ol>
-      {job.status === 'analyzing' && (
-        <p className="muted">
-          Tracking your body and finding the fall. This usually takes 1–3 minutes. You can leave this page; the result
-          shows up in “My videos”.
-        </p>
-      )}
+      {job.status === 'analyzing' && <AnalysisProgress since={job.updated_at} />}
       {job.status === 'uploaded' && (
         <>
           <p className="muted">The video is uploaded but analysis has not started.</p>
@@ -76,15 +72,90 @@ function StatusSteps({ job }: { job: Job }) {
           {err && <p className="err">{err}</p>}
         </>
       )}
-      {job.status === 'failed' && (
+      {job.status === 'failed' && job.quality && !job.quality.passed && <QualityFailed report={job.quality} />}
+      {job.status === 'failed' && !(job.quality && !job.quality.passed) && (
         <div className="banner error">
           <p>{job.error || 'The analysis failed.'}</p>
-          <p className="small">
-            Try again with a new upload. <Link to="/guide">Filming tips</Link> can help.
-          </p>
-          <Link className="btn small" to="/upload">Upload again</Link>
+          <p className="small">Try again with a new video.</p>
+          <AddVideo size="small" />
         </div>
       )}
+    </div>
+  )
+}
+
+/** Estimated analysis time on the GPU worker, in seconds. The bar is an estimate, not real progress. */
+const EST_SECONDS = 75
+const STAGES = [
+  { until: 0.12, label: 'Checking your video' },
+  { until: 0.7, label: 'Tracking your body' },
+  { until: 1, label: 'Finding the fall and writing your cue' },
+]
+
+/** Estimated progress: eases toward 95% over EST_SECONDS and never claims to be done. */
+function estimateProgress(elapsedS: number, est = EST_SECONDS): number {
+  const t = Math.max(0, elapsedS)
+  return Math.min(0.95, 0.95 * (1 - Math.exp((-2.3 * t) / est)) + 0.02)
+}
+
+function AnalysisProgress({ since }: { since: string }) {
+  const [now, setNow] = useState(() => Date.now())
+  const [mounted] = useState(() => Date.now())
+  const parsed = Date.parse(since)
+  const start = Number.isFinite(parsed) ? parsed : mounted
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500)
+    return () => clearInterval(t)
+  }, [])
+  const elapsed = (now - start) / 1000
+  const p = estimateProgress(elapsed)
+  const pct = Math.round(p * 100)
+  const stage = STAGES.findIndex((s) => p < s.until)
+  const step = stage === -1 ? STAGES.length - 1 : stage
+  const left = Math.round(EST_SECONDS - elapsed)
+  return (
+    <div className="analysis-progress" role="status" aria-live="polite">
+      <div className="row between small">
+        <span>
+          <strong>{STAGES[step].label}</strong>
+          <span className="muted"> · Step {step + 1} of {STAGES.length}</span>
+        </span>
+        <span className="muted">{pct}%</span>
+      </div>
+      <div
+        className="progress"
+        role="progressbar"
+        aria-label="Analysis progress (estimate)"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+      >
+        <div className="progress-bar" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="muted small">
+        {left > 5 ? `About ${left} s left.` : 'Almost done — a long clip can take a bit more.'} You can leave this page; the
+        result shows up in “My videos”.
+      </p>
+    </div>
+  )
+}
+
+/** The only place filming tips appear: one per failed check (contract v1.2). */
+function QualityFailed({ report }: { report: QualityReport }) {
+  const failed = report.checks.filter((c) => !c.ok)
+  return (
+    <div className="quality-fail" role="alert">
+      <h2>This video needs a retake</h2>
+      <p className="muted">We checked it before the analysis. Fix {failed.length === 1 ? 'this' : 'these'}, then add a new video.</p>
+      <ul className="qc-list">
+        {failed.map((c) => (
+          <li key={c.id} className="qc-item">
+            <p className="qc-msg">{c.message}</p>
+            {c.tip && <p className="qc-tip small">{c.tip}</p>}
+          </li>
+        ))}
+      </ul>
+      <AddVideo size="wide" />
     </div>
   )
 }

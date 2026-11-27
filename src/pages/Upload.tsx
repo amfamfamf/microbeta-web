@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { AddVideo } from '../components/AddVideo'
 import { ErrorBox } from '../components/Layout'
 import { startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -8,7 +9,6 @@ import { requireSupabase } from '../lib/supabase'
 import { TargetPicker } from '../components/TargetPicker'
 import type { TargetHint, WallHint } from '../lib/types'
 import { extensionFor, readDuration, UploadAborted, uploadResumable } from '../lib/upload'
-import { guideSeen } from './Guide'
 
 type Phase = 'pick' | 'creating' | 'uploading' | 'starting' | 'error'
 
@@ -23,7 +23,7 @@ const WALLS: { value: '' | WallHint; label: string }[] = [
 export function Upload() {
   const { session } = useAuth()
   const nav = useNavigate()
-  const inputRef = useRef<HTMLInputElement>(null)
+  const location = useLocation()
   const [file, setFile] = useState<File | null>(null)
   const [fileErr, setFileErr] = useState<string | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
@@ -36,8 +36,6 @@ export function Upload() {
   const jobRef = useRef<{ id: string; path: string; uploaded: boolean } | null>(null)
   const [hasJob, setHasJob] = useState(false)
   const abortRef = useRef<(() => void) | null>(null)
-
-  if (!guideSeen()) return <Navigate to="/guide" replace />
 
   const pick = async (f: File | undefined) => {
     setFile(null)
@@ -69,6 +67,17 @@ export function Upload() {
     }
     setFile(f)
   }
+
+  // A file chosen from "Add video" on another screen arrives in the navigation state.
+  const handedFile = (location.state as { file?: File } | null)?.file
+  const pickRef = useRef(pick)
+  useEffect(() => {
+    pickRef.current = pick
+  })
+  useEffect(() => {
+    // Deferred so the state updates run after this render, once per handed file.
+    if (handedFile instanceof File) void Promise.resolve().then(() => pickRef.current(handedFile))
+  }, [handedFile])
 
   const run = async () => {
     if (!file || !session) return
@@ -144,28 +153,12 @@ export function Upload() {
       <h1>Upload a fall</h1>
 
       <div className="card">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="video/*"
-          capture="environment"
-          className="sr-only"
-          id="video-file"
-          onChange={(e) => pick(e.target.files?.[0])}
-          disabled={busy}
+        <AddVideo
+          onPick={pick}
+          label={file ? 'Change video' : 'Add video'}
+          variant={file ? 'ghost' : 'primary'}
+          disabled={busy || hasJob}
         />
-        <input
-          type="file"
-          accept="video/*"
-          className="sr-only"
-          id="video-library"
-          onChange={(e) => pick(e.target.files?.[0])}
-          disabled={busy}
-        />
-        <div className="row">
-          <label htmlFor="video-file" className={'btn' + (busy ? ' disabled' : '')}>🎥 Record</label>
-          <label htmlFor="video-library" className={'btn ghost' + (busy ? ' disabled' : '')}>📁 Pick a video</label>
-        </div>
         <p className="muted small">Up to 60 seconds and 200 MB.</p>
         {fileErr && <p className="err" role="alert">{fileErr}</p>}
         {file && (
@@ -254,17 +247,16 @@ export function Upload() {
 
       {error && <ErrorBox message={error} />}
 
-      <button type="button" className="btn wide" disabled={!file || busy} onClick={run}>
-        {phase === 'error' ? 'Try again' : 'Upload and analyze'}
-      </button>
+      {file && (
+        <button type="button" className="btn wide" disabled={busy} onClick={run}>
+          {phase === 'error' ? 'Try again' : 'Upload and analyze'}
+        </button>
+      )}
       {hasJob && phase === 'error' && (
         <p className="muted small">
           Your job is saved. You can also retry from <Link to="/jobs">My videos</Link>.
         </p>
       )}
-      <p className="muted small">
-        <Link to="/guide">Filming tips</Link>
-      </p>
     </div>
   )
 }

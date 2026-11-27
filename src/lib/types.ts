@@ -9,6 +9,20 @@ export interface TargetHint {
 export type JobStatus = 'uploaded' | 'analyzing' | 'ready' | 'failed'
 export type WallHint = 'slab' | 'vertical' | 'overhang' | 'roof'
 
+export type QualityCheckId = 'frame_rate' | 'full_body' | 'target_hold'
+
+export interface QualityCheck {
+  id: QualityCheckId
+  ok: boolean
+  message: string | null
+  tip: string | null
+}
+
+export interface QualityReport {
+  passed: boolean
+  checks: QualityCheck[]
+}
+
 export interface Job {
   id: string
   user_id: string
@@ -17,6 +31,8 @@ export interface Job {
   video_path: string
   wall_hint: WallHint | null
   target_hint: TargetHint | null
+  /** v1.2: upload quality check, written by the worker. */
+  quality?: QualityReport | null
   created_at: string
   updated_at: string
 }

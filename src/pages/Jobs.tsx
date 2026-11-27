@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AddVideo } from '../components/AddVideo'
 import { ErrorBox, Spinner } from '../components/Layout'
 import { startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -20,14 +21,14 @@ export function Jobs() {
     <div className="stack">
       <div className="row between">
         <h1>My videos</h1>
-        <Link className="btn small" to="/upload">+ Upload</Link>
+        <AddVideo size="small" />
       </div>
       {error && <ErrorBox message={error} onRetry={retry} />}
       {!jobs && !error && <Spinner />}
       {jobs && jobs.length === 0 && (
         <div className="card center-text">
           <p>No videos yet.</p>
-          <Link className="btn" to="/upload">Upload your first fall</Link>
+          <AddVideo variant="ghost" />
         </div>
       )}
       {jobs && jobs.length > 0 && (
