@@ -35,6 +35,8 @@ export interface Job {
   target_hint: TargetHint | null
   /** v1.2: upload quality check, written by the worker. */
   quality?: QualityReport | null
+  /** v1.2: wall angle in degrees from vertical (-30 slab .. 90 roof), picked at upload. */
+  wall_angle_deg?: number | null
   /** v1.2: the color of the problem's holds, picked at upload. */
   hold_color?: HoldColor | null
   /** v1.2: clip length in seconds, read by the browser before upload. */

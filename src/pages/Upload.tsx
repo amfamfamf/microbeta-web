@@ -1,24 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AddVideo } from '../components/AddVideo'
+import { bandFor, WallAngle } from '../components/WallAngle'
 import { ErrorBox } from '../components/Layout'
 import { startJob } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { MAX_BYTES, MAX_SECONDS } from '../lib/env'
 import { requireSupabase } from '../lib/supabase'
 import { TargetPicker } from '../components/TargetPicker'
-import type { HoldColor, TargetHint, WallHint } from '../lib/types'
+import type { HoldColor, TargetHint } from '../lib/types'
 import { extensionFor, readDuration, UploadAborted, uploadResumable } from '../lib/upload'
 
 type Phase = 'pick' | 'creating' | 'uploading' | 'starting' | 'error'
 
-const WALLS: { value: '' | WallHint; label: string }[] = [
-  { value: '', label: 'Let the app guess' },
-  { value: 'slab', label: 'Slab (leans away from you)' },
-  { value: 'vertical', label: 'Vertical' },
-  { value: 'overhang', label: 'Overhang (leans over you)' },
-  { value: 'roof', label: 'Roof' },
-]
 
 // Swatch colors are for the picker only (hold colors, not brand colors). Every chip also has its name.
 const HOLD_COLORS: { value: HoldColor; label: string; swatch: string }[] = [
@@ -41,7 +35,7 @@ export function Upload() {
   const [file, setFile] = useState<File | null>(null)
   const [fileErr, setFileErr] = useState<string | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
-  const [wall, setWall] = useState<'' | WallHint>('')
+  const [wallDeg, setWallDeg] = useState<number | null>(null)
   const [holdColor, setHoldColor] = useState<HoldColor | null>(null)
   const [target, setTarget] = useState<TargetHint | null>(null)
   const [targetSkipped, setTargetSkipped] = useState(false)
@@ -109,7 +103,8 @@ export function Upload() {
           user_id: session.user.id,
           status: 'uploaded',
           video_path: path,
-          wall_hint: wall || null,
+          wall_hint: wallDeg == null ? null : bandFor(wallDeg).hint,
+          wall_angle_deg: wallDeg,
           target_hint: target,
           hold_color: holdColor,
           ...(duration != null && duration > 0 ? { duration_s: Math.min(61, Math.round(duration * 10) / 10) } : {}),
@@ -263,12 +258,7 @@ export function Upload() {
       </fieldset>
 
       <div className="card">
-        <label htmlFor="wall" className="field-label">Wall angle</label>
-        <select id="wall" value={wall} onChange={(e) => setWall(e.target.value as '' | WallHint)} disabled={busy || hasJob}>
-          {WALLS.map((w) => (
-            <option key={w.value} value={w.value}>{w.label}</option>
-          ))}
-        </select>
+        <WallAngle value={wallDeg} onChange={setWallDeg} disabled={busy || hasJob} />
       </div>
 
       <p className="privacy small">
