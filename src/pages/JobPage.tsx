@@ -46,7 +46,7 @@ function StatusSteps({ job }: { job: Job }) {
           </li>
         ))}
       </ol>
-      {job.status === 'analyzing' && <AnalysisProgress since={job.updated_at} />}
+      {job.status === 'analyzing' && <AnalysisProgress since={job.updated_at} durationS={job.duration_s} />}
       {job.status === 'uploaded' && (
         <>
           <p className="muted">The video is uploaded but analysis has not started.</p>
@@ -84,21 +84,31 @@ function StatusSteps({ job }: { job: Job }) {
   )
 }
 
-/** Estimated analysis time on the GPU worker, in seconds. The bar is an estimate, not real progress. */
-const EST_SECONDS = 75
+/**
+ * Estimated analysis time on the GPU worker (contract v1.2): a fixed part (start-up, download,
+ * convert, cue writing) plus a part per second of video (pose tracking runs on every frame).
+ * Starting values; tune them from result.timings. The bar is an estimate, not real progress.
+ */
+const EST_FIXED_S = 20
+const EST_PER_VIDEO_S = 1.2
+const EST_UNKNOWN_S = 45
+
+function expectedSeconds(durationS: number | null | undefined): number {
+  return durationS && durationS > 0 ? EST_FIXED_S + EST_PER_VIDEO_S * durationS : EST_UNKNOWN_S
+}
 const STAGES = [
   { until: 0.12, label: 'Checking your video' },
   { until: 0.7, label: 'Tracking your body' },
   { until: 1, label: 'Finding the fall and writing your cue' },
 ]
 
-/** Estimated progress: eases toward 95% over EST_SECONDS and never claims to be done. */
-function estimateProgress(elapsedS: number, est = EST_SECONDS): number {
+/** Estimated progress: close to 90% at the expected time, then creeps toward 95%. Never claims to be done. */
+function estimateProgress(elapsedS: number, est: number): number {
   const t = Math.max(0, elapsedS)
   return Math.min(0.95, 0.95 * (1 - Math.exp((-2.3 * t) / est)) + 0.02)
 }
 
-function AnalysisProgress({ since }: { since: string }) {
+function AnalysisProgress({ since, durationS }: { since: string; durationS?: number | null }) {
   const [now, setNow] = useState(() => Date.now())
   const [mounted] = useState(() => Date.now())
   const parsed = Date.parse(since)
@@ -108,11 +118,12 @@ function AnalysisProgress({ since }: { since: string }) {
     return () => clearInterval(t)
   }, [])
   const elapsed = (now - start) / 1000
-  const p = estimateProgress(elapsed)
+  const est = expectedSeconds(durationS)
+  const p = estimateProgress(elapsed, est)
   const pct = Math.round(p * 100)
   const stage = STAGES.findIndex((s) => p < s.until)
   const step = stage === -1 ? STAGES.length - 1 : stage
-  const left = Math.round(EST_SECONDS - elapsed)
+  const left = Math.round(est - elapsed)
   return (
     <div className="analysis-progress" role="status" aria-live="polite">
       <div className="row between small">

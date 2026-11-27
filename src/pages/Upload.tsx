@@ -96,6 +96,7 @@ export function Upload() {
           video_path: path,
           wall_hint: wall || null,
           target_hint: target,
+          ...(duration != null && duration > 0 ? { duration_s: Math.min(61, Math.round(duration * 10) / 10) } : {}),
         })
         if (insErr) throw new Error('We could not create the job. Check your connection, then tap “Upload” again.')
         jobRef.current = { id, path, uploaded: false }

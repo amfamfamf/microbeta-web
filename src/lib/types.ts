@@ -33,6 +33,8 @@ export interface Job {
   target_hint: TargetHint | null
   /** v1.2: upload quality check, written by the worker. */
   quality?: QualityReport | null
+  /** v1.2: clip length in seconds, read by the browser before upload. */
+  duration_s?: number | null
   created_at: string
   updated_at: string
 }
