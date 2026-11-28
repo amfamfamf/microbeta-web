@@ -72,7 +72,7 @@ export interface Cue {
   evidence: Record<string, unknown>
   /** v1.5: index of the attempt this cue (its best occurrence) comes from. */
   attempt?: number
-  /** v1.5 (top-level cues only): every attempt where this rule fired with high confidence, in time order. */
+  /** v1.5 (top-level cues only): every attempt where this rule fired at or above min_confidence (0.4), in time order. */
   occurrences?: CueOccurrence[]
 }
 
@@ -128,7 +128,7 @@ export interface ResultJson {
   trim?: { start: number; end: number; leave_ground: number | null; land: number | null; pad_s: number }
   /** v1.5: one entry per attempt. Missing on older results: treat the clip as one attempt. */
   attempts?: Attempt[]
-  /** v1.5: all high-confidence cues from any attempt, merged by rule, best first. */
+  /** v1.5: every cue at or above min_confidence (0.4) from any attempt, merged by rule, best first. */
   cues: Cue[]
   no_cue_reason: string | null
   safety_note: string | null
