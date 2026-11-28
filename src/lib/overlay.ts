@@ -1,4 +1,5 @@
 import { type Cue, type FeaturesJson, type LimbName, type Point, type ResultJson } from './types'
+import { apply, boxPath, reproject, wallAt } from './wall'
 
 /**
  * Overlay colors from the Mono ice design system (DESIGN.md, tokens --ov-*).
@@ -150,6 +151,9 @@ export function drawOverlay(
   // Base of support is computed for the rules (contacts) but never drawn.
   const cog = f.cog[i]
 
+  // Holds are in reference (first-frame) coordinates; move them with the camera (v1.6 wall_transform).
+  const W = wallAt(f, i)
+
   // Hold the user tapped (v1.1): solid outline just outside the hold box.
   const tappedId = r.holds?.tapped_id
   if (layers.has('reach') && tappedId != null) {
@@ -157,7 +161,8 @@ export function drawOverlay(
     if (h) {
       ctx.strokeStyle = COLORS.tapped
       ctx.lineWidth = lw(2.5)
-      ctx.strokeRect(h.x - lw(4), h.y - lw(4), h.w + lw(8), h.h + lw(8))
+      boxPath(ctx, W, h, lw(4))
+      ctx.stroke()
     }
   }
 
@@ -168,13 +173,14 @@ export function drawOverlay(
     ctx.globalAlpha = near ? 1 : 0.5
     ctx.strokeStyle = COLORS.outline
     ctx.lineWidth = lw(6)
-    ctx.strokeRect(t.x, t.y, t.w, t.h)
+    boxPath(ctx, W, t)
+    ctx.stroke()
     ctx.strokeStyle = COLORS.target
     ctx.lineWidth = lw(3.5)
-    ctx.strokeRect(t.x, t.y, t.w, t.h)
+    ctx.stroke()
     ctx.globalAlpha = 1
     if (near) {
-      const center: Point = [t.x + t.w / 2, t.y + t.h / 2]
+      const center = apply(W, [t.x + t.w / 2, t.y + t.h / 2])
       const hand = reachingHand(f, center, i)
       if (hand) {
         ctx.strokeStyle = COLORS.outline
@@ -228,12 +234,15 @@ export function drawOverlay(
     }
   }
 
-  // COG path (last ~1 s, fading), plumb line, COG dot.
+  // COG path (last ~1 s, fading), plumb line, COG dot. Older points are re-projected into this frame,
+  // so the trail stays where it was on the wall when the camera moves.
   const span = Math.round(f.fps)
   for (let j = Math.max(1, i - span); j <= i; j++) {
-    const a = f.cog[j - 1]
-    const b = f.cog[j]
-    if (!a || !b) continue
+    const a0 = f.cog[j - 1]
+    const b0 = f.cog[j]
+    if (!a0 || !b0) continue
+    const a = reproject(f, a0, j - 1, i)
+    const b = reproject(f, b0, j, i)
     const age = (i - j) / span
     ctx.strokeStyle = `rgba(${COLORS.cogPath},${(1 - age) * 0.9})`
     ctx.lineWidth = lw(3)

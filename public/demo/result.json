@@ -111,10 +111,10 @@
     "tapped_id": 7
   },
   "camera": {
-    "moved": false,
-    "max_shift_px": 2.4,
-    "jitter_px": 0.3,
-    "checked": 120
+    "moved": true,
+    "max_shift_px": 84,
+    "jitter_px": 3.1,
+    "checked": 60
   },
   "warnings": [
     "Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view."

@@ -151,10 +151,28 @@ function pose(i, { REACH_START, FOOT_CUT, FALL }) {
 }
 
 const r1 = (v) => Math.round(v * 10) / 10
+// Handheld camera (contract v1.6): the wall shifts by CAM[i] pixels from frame 0 (a slow pan plus a little shake).
+// Poses are built in wall (reference) coordinates, then moved into each frame's pixels. Holds stay in reference
+// coordinates in result.json; features.wall_transform carries the shift so the overlay can follow the wall.
+const CAM = Array.from({ length: N }, (_, i) => {
+  const u = i / N
+  return [70 * Math.sin(2 * Math.PI * u) + 3 * Math.sin(i * 1.7), 60 * u + 2 * Math.cos(i * 2.3) - 2]
+})
+CAM[0] = [0, 0]
+const shift = (p, [dx, dy]) => [p[0] + dx, p[1] + dy]
 const frames = Array.from({ length: N }, (_, i) => {
   const a = ATTEMPTS[Math.floor(i / A_LEN)]
-  return pose(i - a.off, a)
+  const p = pose(i - a.off, a)
+  const c = CAM[i]
+  return {
+    ...p,
+    kp: p.kp.map((q) => shift(q, c)),
+    cog: shift(p.cog, c),
+    limbs: Object.fromEntries(Object.entries(p.limbs).map(([k, q]) => [k, shift(q, c)])),
+  }
 })
+// Tracking lost for a few frames to exercise `null` (the web holds the nearest known transform).
+const TRACK_LOST = new Set([100, 101, 102])
 
 // Hide the pose for 2 frames to exercise `null` handling.
 const MISSING = new Set([84, 85])
@@ -172,6 +190,7 @@ const features = {
     { kind: 'foot_cut', frame: a.off + a.FOOT_CUT, limb: null },
     { kind: 'release', frame: a.off + a.FALL, limb: 'l_hand' },
   ]).map((e) => ({ ...e, time: Math.round((e.frame / FPS) * 1000) / 1000 })),
+  wall_transform: CAM.map((c, i) => (TRACK_LOST.has(i) ? null : [1, 0, 0, 1, r1(c[0]), r1(c[1])])),
 }
 
 const t3 = (f) => Math.round((f / FPS) * 1000) / 1000
@@ -240,7 +259,7 @@ const result = {
     holds: HOLDS.map((h) => ({ id: h.id, x: h.x, y: h.y, w: h.w, h: h.h, area: h.w * h.h, hue_bin: h.hue[0] === 80 ? 3 : 1, problem: h.hue[0] === 80 })),
     problem_hue_bin: 3, confidence: 0.7, tapped_id: TARGET.id,
   },
-  camera: { moved: false, max_shift_px: 2.4, jitter_px: 0.3, checked: 120 },
+  camera: { moved: true, max_shift_px: 84.0, jitter_px: 3.1, checked: 60 },
   warnings: [
     'Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view.',
   ],
@@ -269,20 +288,23 @@ writeFileSync(join(OUT, 'result-empty.json'), JSON.stringify(resultEmpty, null, 
 
 // ---- Render the video with a tiny software rasterizer piped into ffmpeg. ----
 const buf = Buffer.alloc(W * H * 3)
+let OX = 0
+let OY = 0
 function fillBg() {
+  const mod = (v, m) => ((v % m) + m) % m
   for (let y = 0; y < H; y++) {
     const shade = 70 + Math.round((y / H) * 30)
     for (let x = 0; x < W; x++) {
       const k = (y * W + x) * 3
       // Faint panel grid so motion is readable.
-      const grid = x % 120 === 0 || y % 120 === 0 ? 12 : 0
+      const grid = mod(Math.round(x - OX), 120) === 0 || mod(Math.round(y - OY), 120) === 0 ? 12 : 0
       buf[k] = shade - 10 + grid
       buf[k + 1] = shade - 5 + grid
       buf[k + 2] = shade + 5 + grid
     }
   }
   // Mat.
-  rect(0, 1180, W, 100, [40, 50, 90])
+  rect(OX - 200, 1180 + OY, W + 400, 200, [40, 50, 90])
 }
 function rect(x0, y0, w, h, c) {
   for (let y = Math.max(0, y0 | 0); y < Math.min(H, (y0 + h) | 0); y++)
@@ -327,8 +349,9 @@ const ff = spawn('ffmpeg', [
 
 const BODY = [235, 225, 210]
 for (let i = 0; i < N; i++) {
+  ;[OX, OY] = CAM[i]
   fillBg()
-  for (const h of HOLDS) disc(h.x + h.w / 2, h.y + h.h / 2, Math.min(h.w, h.h) / 2 + 2, h.hue)
+  for (const h of HOLDS) disc(h.x + h.w / 2 + OX, h.y + h.h / 2 + OY, Math.min(h.w, h.h) / 2 + 2, h.hue)
   const { kp } = frames[i]
   if (!MISSING.has(i)) {
     for (const [a, b] of EDGES) if (a > 4 && b > 4) line(kp[a], kp[b], 9, BODY)

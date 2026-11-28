@@ -154,7 +154,15 @@ export interface FeaturesJson {
   contacts: Record<LimbName, boolean[]>
   limbs: Record<LimbName, (Point | null)[]>
   events: { kind: EventKind; frame: number; time: number; limb: LimbName | null }[]
+  /**
+   * v1.6 (proposed): per frame, the affine [a, b, c, d, tx, ty] that maps a wall point from reference coordinates
+   * (frame 0; holds and target_hold use these) to that frame: x' = a·x + b·y + tx, y' = c·x + d·y + ty.
+   * `null` = unknown (use the nearest known frame). Missing = still camera.
+   */
+  wall_transform?: (Affine | null)[]
 }
+
+export type Affine = [number, number, number, number, number, number]
 
 export type CueFlag = 'wrong_cue' | 'wrong_fall_frame'
 export type CueRating = 'up' | 'down'
