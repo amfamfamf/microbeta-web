@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { attemptAt, attemptPos, attemptsOf, occurrencesOf, viewFor } from '../lib/attempts'
 import { drawOverlay, frameAt, layersFor, type Layer } from '../lib/overlay'
 import type { FeaturesJson, FeedbackApi, ResultJson } from '../lib/types'
 import { CueCard } from './CueCard'
-import { Scrubber } from './Scrubber'
+import { Scrubber, type Marker } from './Scrubber'
 
 interface Props {
   result: ResultJson
@@ -37,25 +38,31 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
   const [overlayOn, setOverlayOn] = useState(true)
   const [activeCue, setActiveCue] = useState(0)
   const [videoError, setVideoError] = useState(false)
-  // Auto-trim (v1.4): play only from just before leaving the ground to just after landing, unless "Show full video".
+  // Attempts (v1.5): each attempt is played like its own video, from just before leaving the ground to just after
+  // landing. Older results are one attempt = the v1.4 auto-trim. "Show full video" plays the whole file.
+  const atts = useMemo(() => attemptsOf(result, duration), [result, duration])
+  const multi = atts.length > 1
+  const [att, setAtt] = useState(() => Math.max(0, attemptPos(atts, result.cues[0]?.attempt)))
+  const cur = atts[Math.min(att, atts.length - 1)]
   const [full, setFull] = useState(false)
-  const trim = result.trim
-  const trimmed = Boolean(trim && (trim.start > 0.05 || trim.end < duration - 0.05))
-  const lo = trimmed && !full ? trim!.start : 0
-  const hi = trimmed && !full ? Math.min(trim!.end, duration) : duration
+  const trimmed = multi || cur.start > 0.05 || cur.end < duration - 0.05
+  const lo = trimmed && !full ? cur.start : 0
+  const hi = trimmed && !full ? Math.min(cur.end, duration) : duration
 
   // Latest values for the paint loop without re-subscribing it.
   const layers = useMemo(() => layersFor(result.cues[activeCue]), [result, activeCue])
-  const live = useRef({ result, features, overlayOn, layers, lo, hi })
+  const live = useRef({ result, features, overlayOn, layers, lo, hi, atts, att })
   useEffect(() => {
-    live.current = { result, features, overlayOn, layers, lo, hi }
+    live.current = { result, features, overlayOn, layers, lo, hi, atts, att }
   })
 
   const paint = useCallback((t: number) => {
     const canvas = canvasRef.current
     const box = boxRef.current
     if (!canvas || !box) return
-    const { features: f, result: r, overlayOn: on, layers: ls } = live.current
+    const { features: f, result: res, overlayOn: on, layers: ls, atts: as, att: sel } = live.current
+    // The overlay uses the fall and target hold of the attempt on screen (in "full video", the one at time t).
+    const r = viewFor(res, as[attemptAt(as, t, sel)])
     const dpr = window.devicePixelRatio || 1
     const cssW = box.clientWidth
     const cssH = box.clientHeight
@@ -155,16 +162,38 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
     if (v && (v.currentTime < lo || v.currentTime > hi)) v.currentTime = lo
   }, [lo, hi])
 
-  const showCue = (i: number) => {
+  /** Show cue `i` at `time` (default: its best occurrence). Switches to the attempt that holds that moment. */
+  const showCue = (i: number, time?: number) => {
+    const v = videoRef.current
     setActiveCue(i)
-    videoRef.current?.pause()
-    const t = result.cues[i].time
-    if (t < lo || t > hi) {
-      setFull(true) // a cue outside the trimmed window: show the whole clip
-      if (videoRef.current) videoRef.current.currentTime = t
-    } else seek(t)
+    v?.pause()
+    const t = time ?? result.cues[i].time
+    const pos = attemptAt(atts, t, -1)
+    if (pos !== -1 && pos !== att) setAtt(pos)
+    if (pos === -1 && (t < lo || t > hi)) setFull(true) // outside every play window: show the whole clip
+    // Set the time directly: lo/hi still belong to the previous attempt until the next render.
+    if (v) v.currentTime = Math.max(0, Math.min(t, duration))
+    setTime(t)
     boxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
+
+  const pickAttempt = (pos: number) => {
+    const v = videoRef.current
+    v?.pause()
+    setAtt(pos)
+    setFull(false)
+    if (v) v.currentTime = atts[pos].start
+    setTime(atts[pos].start)
+  }
+
+  // Cue markers on the scrubber: one per occurrence (the scrubber hides those outside the play window).
+  const markers: Marker[] = result.cues.flatMap((c, i) =>
+    occurrencesOf(c, cur.index).map((o) => ({ index: i, time: o.time, title: c.title })),
+  )
+  const seenIn = (i: number) =>
+    multi
+      ? occurrencesOf(result.cues[i], cur.index).map((o) => ({ attempt: o.attempt, time: o.time }))
+      : undefined
 
   const togglePlay = () => {
     const v = videoRef.current
@@ -200,16 +229,46 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
       )}
 
       {top ? (
-        <CueCard cue={top} index={0} hero active={activeCue === 0} feedback={feedback} onShow={() => showCue(0)} />
+        <CueCard
+          cue={top}
+          index={0}
+          hero
+          active={activeCue === 0}
+          feedback={feedback}
+          onShow={() => showCue(0)}
+          seenIn={seenIn(0)}
+          onShowAt={(t) => showCue(0, t)}
+        />
       ) : (
         <article className="cue-card hero">
           <p className="eyebrow">No cue this time</p>
-          <p className="cue-text">{result.no_cue_reason ?? 'The app did not find a clear fix in this clip.'}</p>
+          <p className="cue-text">
+            {result.no_cue_reason ??
+              (multi
+                ? `The app did not find a clear fix in any of your ${atts.length} attempts.`
+                : 'The app did not find a clear fix in this clip.')}
+          </p>
           <p className="muted small">Tip: film again with your whole body and the target hold in frame.</p>
         </article>
       )}
 
       <div className="player" style={{ maxWidth: `calc(62vh * ${features.width / features.height})` }}>
+        {multi && (
+          <div className="attempts" role="group" aria-label={`${atts.length} attempts in this video`}>
+            <span className="attempts-label">{atts.length} attempts</span>
+            {atts.map((a, pos) => (
+              <button
+                key={a.index}
+                type="button"
+                className={'chip' + (pos === att && !full ? ' on' : '')}
+                aria-pressed={pos === att && !full}
+                onClick={() => pickAttempt(pos)}
+              >
+                Attempt {a.index + 1}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="video-box" ref={boxRef} style={{ aspectRatio: aspect }}>
           <video
             ref={videoRef}
@@ -246,8 +305,8 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
           time={time}
           start={lo}
           end={hi}
-          cues={result.cues}
-          fallTime={result.fall?.time ?? null}
+          markers={markers}
+          fallTime={full && multi ? null : (cur.fall?.time ?? null)}
           activeCue={activeCue}
           onSeek={(t) => {
             videoRef.current?.pause()
@@ -257,7 +316,7 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
         />
         {trimmed && (
           <button type="button" className="link-btn small trim-toggle" onClick={() => setFull((x) => !x)}>
-            {full ? 'Show just the climb' : 'Show full video'}
+            {full ? (multi ? `Back to attempt ${cur.index + 1}` : 'Show just the climb') : 'Show full video'}
           </button>
         )}
         {overlayOn && <Legend layers={layers} tapped={result.holds?.tapped_id != null && layers.has('reach')} />}
@@ -276,6 +335,8 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
               active={activeCue === j + 1}
               feedback={feedback}
               onShow={() => showCue(j + 1)}
+              seenIn={seenIn(j + 1)}
+              onShowAt={(t) => showCue(j + 1, t)}
             />
           ))}
         </section>
@@ -284,7 +345,19 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
       <details className="analysis-details">
         <summary>Analysis details</summary>
         <dl className="details">
-          {result.fall ? (
+          {multi ? (
+            atts.map((a) => (
+              <div key={a.index} className="details-row">
+                <dt>Attempt {a.index + 1}</dt>
+                <dd>
+                  {a.fall
+                    ? `${FALL_KIND[a.fall.kind] ?? a.fall.kind} at ${a.fall.time.toFixed(2)} s (${Math.round(a.fall.confidence * 100)}%)`
+                    : 'No fall found'}
+                  {` · ${a.cues.length} cue${a.cues.length === 1 ? '' : 's'}`}
+                </dd>
+              </div>
+            ))
+          ) : result.fall ? (
             <>
               <dt>Fall</dt>
               <dd>{FALL_KIND[result.fall.kind] ?? result.fall.kind}</dd>

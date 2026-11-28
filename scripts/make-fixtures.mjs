@@ -14,7 +14,8 @@ mkdirSync(OUT, { recursive: true })
 const W = 720
 const H = 1280
 const FPS = 30
-const N = 90 // 3 s
+const A_LEN = 90 // one attempt = 3 s
+const N = 2 * A_LEN // two attempts in one clip (contract v1.5)
 
 const NAMES = [
   'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
@@ -72,13 +73,13 @@ function clampReach(root, p, max) {
   return lerp2(root, p, max / d)
 }
 
-// Timeline (frames).
-const REACH_START = 18
-const FOOT_CUT = 48
-const FALL = 60 // left hand comes off
-const DROP = 66
+// Timeline (frames, relative to the attempt's start). Attempt 2 cuts its feet later and comes off later.
+const ATTEMPTS = [
+  { off: 0, REACH_START: 18, FOOT_CUT: 48, FALL: 60, DROP: 66 },
+  { off: A_LEN, REACH_START: 14, FOOT_CUT: 58, FALL: 66, DROP: 72 },
+]
 
-function pose(i) {
+function pose(i, { REACH_START, FOOT_CUT, FALL }) {
   const t = i / FPS
   // Contacts.
   const feetOn = i < FOOT_CUT
@@ -150,7 +151,10 @@ function pose(i) {
 }
 
 const r1 = (v) => Math.round(v * 10) / 10
-const frames = Array.from({ length: N }, (_, i) => pose(i))
+const frames = Array.from({ length: N }, (_, i) => {
+  const a = ATTEMPTS[Math.floor(i / A_LEN)]
+  return pose(i - a.off, a)
+})
 
 // Hide the pose for 2 frames to exercise `null` handling.
 const MISSING = new Set([84, 85])
@@ -163,59 +167,99 @@ const features = {
   cog: frames.map((f, i) => (MISSING.has(i) ? null : [r1(f.cog[0]), r1(f.cog[1])])),
   contacts: Object.fromEntries(['l_hand', 'r_hand', 'l_foot', 'r_foot'].map((k) => [k, frames.map((f) => f.contacts[k])])),
   limbs: Object.fromEntries(['l_hand', 'r_hand', 'l_foot', 'r_foot'].map((k) => [k, frames.map((f, i) => (MISSING.has(i) ? null : [r1(f.limbs[k][0]), r1(f.limbs[k][1])]))])),
-  events: [
-    { kind: 'release', frame: REACH_START, time: REACH_START / FPS, limb: 'r_hand' },
-    { kind: 'foot_cut', frame: FOOT_CUT, time: FOOT_CUT / FPS, limb: null },
-    { kind: 'release', frame: FALL, time: FALL / FPS, limb: 'l_hand' },
-  ].map((e) => ({ ...e, time: Math.round(e.time * 1000) / 1000 })),
+  events: ATTEMPTS.flatMap((a) => [
+    { kind: 'release', frame: a.off + a.REACH_START, limb: 'r_hand' },
+    { kind: 'foot_cut', frame: a.off + a.FOOT_CUT, limb: null },
+    { kind: 'release', frame: a.off + a.FALL, limb: 'l_hand' },
+  ]).map((e) => ({ ...e, time: Math.round((e.frame / FPS) * 1000) / 1000 })),
 }
 
 const t3 = (f) => Math.round((f / FPS) * 1000) / 1000
+const TARGET_BOX = { id: TARGET.id, x: TARGET.x, y: TARGET.y, w: TARGET.w, h: TARGET.h }
+const cue = (attempt, rule_id, category, title, text, frame, confidence, evidence) =>
+  ({ rule_id, category, title, text, frame, time: t3(frame), confidence, evidence, attempt })
+
+const [A0, A1] = ATTEMPTS
+const attemptCues = [
+  [
+    cue(0, 2, 'Feet', 'Keep your toes pulling',
+      'Your feet cut just before you fell. Curl your toes and pull the footholds in until your hand is on the hold.',
+      A0.FOOT_CUT - 2, 0.78, { foot_cut_time: t3(A0.FOOT_CUT), hand_arrival_time: null, outward_speed: 1.9 }),
+    cue(0, 5, 'Hips', 'Hips to the wall',
+      'Your center of gravity hung away from the wall while you reached. Turn your hip in to reach farther.',
+      36, 0.61, { cog_outside_base_s: 0.4, hip_wall_distance_px: 210, hip_angle: 118 }),
+    cue(0, 9, 'Reach', 'Reach from your legs',
+      'You stopped about one hand short of the target. Push with your legs first, then reach.',
+      A0.FALL - 3, 0.52, { reach_gap_px: 70, arm_extension: 0.98 }),
+  ],
+  [
+    cue(1, 9, 'Reach', 'Reach from your legs',
+      'You stopped short of the target again. Push with your legs first, then reach.',
+      A1.off + A1.FALL - 3, 0.74, { reach_gap_px: 64, arm_extension: 0.99 }),
+    cue(1, 11, 'Arms', 'Lock off before you reach',
+      'Your pulling arm was almost straight as you reached. Bend it to bring the hold closer.',
+      A1.off + 40, 0.68, { elbow_angle: 152 }),
+    cue(1, 2, 'Feet', 'Keep your toes pulling',
+      'Your feet cut again, later this time. Keep toe pressure until your hand is on the hold.',
+      A1.off + A1.FOOT_CUT - 2, 0.66, { foot_cut_time: t3(A1.off + A1.FOOT_CUT), hand_arrival_time: null, outward_speed: 1.4 }),
+  ],
+]
+const attempts = ATTEMPTS.map((a, k) => ({
+  index: k,
+  start: t3(a.off),
+  end: Math.min(t3(a.off + A_LEN), t3(a.off + a.DROP) + 0.9),
+  leave_ground: null, // the synthetic climber starts on the wall
+  land: null, // and falls out of view
+  fall: { frame: a.off + a.FALL, drop_frame: a.off + a.DROP, time: t3(a.off + a.FALL), kind: 'foot_cut_then_off', confidence: k ? 0.77 : 0.82 },
+  target_hold: TARGET_BOX,
+  cues: attemptCues[k],
+  no_cue_reason: null,
+}))
+
+// Top-level cues (v1.5): every cue >= HIGH_CONF from any attempt, merged by rule at its best occurrence.
+const HIGH_CONF = 0.6
+const byRule = new Map()
+for (const c of attemptCues.flat().filter((c) => c.confidence >= HIGH_CONF)) {
+  const occ = { attempt: c.attempt, frame: c.frame, time: c.time, confidence: c.confidence }
+  const prev = byRule.get(c.rule_id)
+  if (!prev) byRule.set(c.rule_id, { ...c, occurrences: [occ] })
+  else {
+    const occurrences = [...prev.occurrences, occ].sort((x, y) => x.time - y.time)
+    byRule.set(c.rule_id, c.confidence > prev.confidence ? { ...c, occurrences } : { ...prev, occurrences })
+  }
+}
+const merged = [...byRule.values()].sort((x, y) => y.confidence - x.confidence)
+const primary = attempts[merged[0].attempt]
+
 const result = {
   version: 1, fps: FPS, width: W, height: H, duration: N / FPS,
-  fall: { frame: FALL, drop_frame: DROP, time: t3(FALL), kind: 'foot_cut_then_off', confidence: 0.82 },
+  fall: primary.fall,
   wall: { class: 'overhang', confidence: 0.6, source: 'inferred' },
-  target_hold: { id: TARGET.id, x: TARGET.x, y: TARGET.y, w: TARGET.w, h: TARGET.h },
+  target_hold: TARGET_BOX,
   holds: {
     holds: HOLDS.map((h) => ({ id: h.id, x: h.x, y: h.y, w: h.w, h: h.h, area: h.w * h.h, hue_bin: h.hue[0] === 80 ? 3 : 1, problem: h.hue[0] === 80 })),
     problem_hue_bin: 3, confidence: 0.7, tapped_id: TARGET.id,
   },
-  camera: { moved: false, max_shift_px: 2.4, jitter_px: 0.3 },
+  camera: { moved: false, max_shift_px: 2.4, jitter_px: 0.3, checked: 120 },
   warnings: [
     'Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view.',
   ],
-  cues: [
-    {
-      rule_id: 2, category: 'Feet', title: 'Keep your toes pulling',
-      text: 'Your feet cut just before you fell. On the overhang, curl your toes and pull the footholds toward you until your hand is on the target hold.',
-      frame: FOOT_CUT - 2, time: t3(FOOT_CUT - 2), confidence: 0.78,
-      evidence: { foot_cut_time: t3(FOOT_CUT), hand_arrival_time: null, outward_speed: 1.9 },
-    },
-    {
-      rule_id: 5, category: 'Hips', title: 'Hips to the wall',
-      text: 'Your center of gravity was outside your base of support while you reached. Turn your hip in toward the wall to reach farther.',
-      frame: 36, time: t3(36), confidence: 0.61,
-      evidence: { cog_outside_base_s: 0.4, hip_wall_distance_px: 210 },
-    },
-    {
-      rule_id: 9, category: 'Reach', title: 'Reach from your legs',
-      text: 'You stopped about one hand short of the target. Push with your legs first, then reach.',
-      frame: FALL - 3, time: t3(FALL - 3), confidence: 0.52,
-      evidence: { reach_gap_px: 70, arm_extension: 0.98 },
-    },
-  ],
+  trim: { start: primary.start, end: primary.end, leave_ground: null, land: null, pad_s: 0.5 },
+  attempts,
+  cues: merged,
   no_cue_reason: null,
   safety_note: null,
 }
 const resultEmpty = {
   ...result,
+  attempts: attempts.map((a) => ({ ...a, cues: [], no_cue_reason: 'Feet out of view before the fall.' })),
   cues: [],
   camera: { moved: true, max_shift_px: 41.7, jitter_px: 6.2 },
   warnings: [
     'The camera moved during the clip, so we skipped the hold checks. Use a tripod or lean the phone on something steady.',
     'Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view.',
   ],
-  no_cue_reason: 'We could not see your feet clearly before the fall, so we will not guess a cue. Film from a little farther back so your whole body is in frame.',
+  no_cue_reason: 'We could not see your feet clearly before either fall, so we will not guess a cue. Film from a little farther back so your whole body is in frame.',
   safety_note: 'You landed close to the edge of the mat. Check the mat position before your next attempt.',
 }
 

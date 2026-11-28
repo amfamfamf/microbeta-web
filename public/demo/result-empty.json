@@ -3,7 +3,7 @@
   "fps": 30,
   "width": 720,
   "height": 1280,
-  "duration": 3,
+  "duration": 6,
   "fall": {
     "frame": 60,
     "drop_frame": 66,
@@ -119,7 +119,62 @@
     "The camera moved during the clip, so we skipped the hold checks. Use a tripod or lean the phone on something steady.",
     "Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view."
   ],
+  "trim": {
+    "start": 0,
+    "end": 3,
+    "leave_ground": null,
+    "land": null,
+    "pad_s": 0.5
+  },
+  "attempts": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 3,
+      "leave_ground": null,
+      "land": null,
+      "fall": {
+        "frame": 60,
+        "drop_frame": 66,
+        "time": 2,
+        "kind": "foot_cut_then_off",
+        "confidence": 0.82
+      },
+      "target_hold": {
+        "id": 7,
+        "x": 430,
+        "y": 220,
+        "w": 44,
+        "h": 36
+      },
+      "cues": [],
+      "no_cue_reason": "Feet out of view before the fall."
+    },
+    {
+      "index": 1,
+      "start": 3,
+      "end": 6,
+      "leave_ground": null,
+      "land": null,
+      "fall": {
+        "frame": 156,
+        "drop_frame": 162,
+        "time": 5.2,
+        "kind": "foot_cut_then_off",
+        "confidence": 0.77
+      },
+      "target_hold": {
+        "id": 7,
+        "x": 430,
+        "y": 220,
+        "w": 44,
+        "h": 36
+      },
+      "cues": [],
+      "no_cue_reason": "Feet out of view before the fall."
+    }
+  ],
   "cues": [],
-  "no_cue_reason": "We could not see your feet clearly before the fall, so we will not guess a cue. Film from a little farther back so your whole body is in frame.",
+  "no_cue_reason": "We could not see your feet clearly before either fall, so we will not guess a cue. Film from a little farther back so your whole body is in frame.",
   "safety_note": "You landed close to the edge of the mat. Check the mat position before your next attempt."
 }

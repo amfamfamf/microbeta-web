@@ -70,6 +70,38 @@ export interface Cue {
   time: number
   confidence: number
   evidence: Record<string, unknown>
+  /** v1.5: index of the attempt this cue (its best occurrence) comes from. */
+  attempt?: number
+  /** v1.5 (top-level cues only): every attempt where this rule fired with high confidence, in time order. */
+  occurrences?: CueOccurrence[]
+}
+
+export interface CueOccurrence {
+  attempt: number
+  frame: number
+  time: number
+  confidence: number
+}
+
+export interface Fall {
+  frame: number
+  drop_frame: number
+  time: number
+  kind: FallKind
+  confidence: number
+}
+
+/** v1.5: one attempt (leave the ground → land), analyzed like a whole v1.4 clip. Seconds/frames in video.mp4. */
+export interface Attempt {
+  index: number
+  start: number
+  end: number
+  leave_ground: number | null
+  land: number | null
+  fall: Fall | null
+  target_hold: (Box & { id: number }) | null
+  cues: Cue[]
+  no_cue_reason: string | null
 }
 
 export interface ResultJson {
@@ -78,13 +110,7 @@ export interface ResultJson {
   width: number
   height: number
   duration: number
-  fall: {
-    frame: number
-    drop_frame: number
-    time: number
-    kind: FallKind
-    confidence: number
-  } | null
+  fall: Fall | null
   wall: { class: WallClass; confidence: number; source: string }
   target_hold: (Box & { id: number }) | null
   holds: {
@@ -100,6 +126,9 @@ export interface ResultJson {
   warnings?: string[]
   /** v1.4: play window, seconds in video.mp4 (0.5 s before leaving the ground to 0.5 s after landing). */
   trim?: { start: number; end: number; leave_ground: number | null; land: number | null; pad_s: number }
+  /** v1.5: one entry per attempt. Missing on older results: treat the clip as one attempt. */
+  attempts?: Attempt[]
+  /** v1.5: all high-confidence cues from any attempt, merged by rule, best first. */
   cues: Cue[]
   no_cue_reason: string | null
   safety_note: string | null

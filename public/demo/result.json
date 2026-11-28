@@ -3,7 +3,7 @@
   "fps": 30,
   "width": 720,
   "height": 1280,
-  "duration": 3,
+  "duration": 6,
   "fall": {
     "frame": 60,
     "drop_frame": 66,
@@ -113,17 +113,161 @@
   "camera": {
     "moved": false,
     "max_shift_px": 2.4,
-    "jitter_px": 0.3
+    "jitter_px": 0.3,
+    "checked": 120
   },
   "warnings": [
     "Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view."
+  ],
+  "trim": {
+    "start": 0,
+    "end": 3,
+    "leave_ground": null,
+    "land": null,
+    "pad_s": 0.5
+  },
+  "attempts": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 3,
+      "leave_ground": null,
+      "land": null,
+      "fall": {
+        "frame": 60,
+        "drop_frame": 66,
+        "time": 2,
+        "kind": "foot_cut_then_off",
+        "confidence": 0.82
+      },
+      "target_hold": {
+        "id": 7,
+        "x": 430,
+        "y": 220,
+        "w": 44,
+        "h": 36
+      },
+      "cues": [
+        {
+          "rule_id": 2,
+          "category": "Feet",
+          "title": "Keep your toes pulling",
+          "text": "Your feet cut just before you fell. Curl your toes and pull the footholds in until your hand is on the hold.",
+          "frame": 46,
+          "time": 1.533,
+          "confidence": 0.78,
+          "evidence": {
+            "foot_cut_time": 1.6,
+            "hand_arrival_time": null,
+            "outward_speed": 1.9
+          },
+          "attempt": 0
+        },
+        {
+          "rule_id": 5,
+          "category": "Hips",
+          "title": "Hips to the wall",
+          "text": "Your center of gravity hung away from the wall while you reached. Turn your hip in to reach farther.",
+          "frame": 36,
+          "time": 1.2,
+          "confidence": 0.61,
+          "evidence": {
+            "cog_outside_base_s": 0.4,
+            "hip_wall_distance_px": 210,
+            "hip_angle": 118
+          },
+          "attempt": 0
+        },
+        {
+          "rule_id": 9,
+          "category": "Reach",
+          "title": "Reach from your legs",
+          "text": "You stopped about one hand short of the target. Push with your legs first, then reach.",
+          "frame": 57,
+          "time": 1.9,
+          "confidence": 0.52,
+          "evidence": {
+            "reach_gap_px": 70,
+            "arm_extension": 0.98
+          },
+          "attempt": 0
+        }
+      ],
+      "no_cue_reason": null
+    },
+    {
+      "index": 1,
+      "start": 3,
+      "end": 6,
+      "leave_ground": null,
+      "land": null,
+      "fall": {
+        "frame": 156,
+        "drop_frame": 162,
+        "time": 5.2,
+        "kind": "foot_cut_then_off",
+        "confidence": 0.77
+      },
+      "target_hold": {
+        "id": 7,
+        "x": 430,
+        "y": 220,
+        "w": 44,
+        "h": 36
+      },
+      "cues": [
+        {
+          "rule_id": 9,
+          "category": "Reach",
+          "title": "Reach from your legs",
+          "text": "You stopped short of the target again. Push with your legs first, then reach.",
+          "frame": 153,
+          "time": 5.1,
+          "confidence": 0.74,
+          "evidence": {
+            "reach_gap_px": 64,
+            "arm_extension": 0.99
+          },
+          "attempt": 1
+        },
+        {
+          "rule_id": 11,
+          "category": "Arms",
+          "title": "Lock off before you reach",
+          "text": "Your pulling arm was almost straight as you reached. Bend it to bring the hold closer.",
+          "frame": 130,
+          "time": 4.333,
+          "confidence": 0.68,
+          "evidence": {
+            "elbow_angle": 152
+          },
+          "attempt": 1
+        },
+        {
+          "rule_id": 2,
+          "category": "Feet",
+          "title": "Keep your toes pulling",
+          "text": "Your feet cut again, later this time. Keep toe pressure until your hand is on the hold.",
+          "frame": 146,
+          "time": 4.867,
+          "confidence": 0.66,
+          "evidence": {
+            "foot_cut_time": 4.933,
+            "hand_arrival_time": null,
+            "outward_speed": 1.4
+          },
+          "attempt": 1
+        }
+      ],
+      "no_cue_reason": null
+    }
   ],
   "cues": [
     {
       "rule_id": 2,
       "category": "Feet",
       "title": "Keep your toes pulling",
-      "text": "Your feet cut just before you fell. On the overhang, curl your toes and pull the footholds toward you until your hand is on the target hold.",
+      "text": "Your feet cut just before you fell. Curl your toes and pull the footholds in until your hand is on the hold.",
       "frame": 46,
       "time": 1.533,
       "confidence": 0.78,
@@ -131,33 +275,88 @@
         "foot_cut_time": 1.6,
         "hand_arrival_time": null,
         "outward_speed": 1.9
-      }
-    },
-    {
-      "rule_id": 5,
-      "category": "Hips",
-      "title": "Hips to the wall",
-      "text": "Your center of gravity was outside your base of support while you reached. Turn your hip in toward the wall to reach farther.",
-      "frame": 36,
-      "time": 1.2,
-      "confidence": 0.61,
-      "evidence": {
-        "cog_outside_base_s": 0.4,
-        "hip_wall_distance_px": 210
-      }
+      },
+      "attempt": 0,
+      "occurrences": [
+        {
+          "attempt": 0,
+          "frame": 46,
+          "time": 1.533,
+          "confidence": 0.78
+        },
+        {
+          "attempt": 1,
+          "frame": 146,
+          "time": 4.867,
+          "confidence": 0.66
+        }
+      ]
     },
     {
       "rule_id": 9,
       "category": "Reach",
       "title": "Reach from your legs",
-      "text": "You stopped about one hand short of the target. Push with your legs first, then reach.",
-      "frame": 57,
-      "time": 1.9,
-      "confidence": 0.52,
+      "text": "You stopped short of the target again. Push with your legs first, then reach.",
+      "frame": 153,
+      "time": 5.1,
+      "confidence": 0.74,
       "evidence": {
-        "reach_gap_px": 70,
-        "arm_extension": 0.98
-      }
+        "reach_gap_px": 64,
+        "arm_extension": 0.99
+      },
+      "attempt": 1,
+      "occurrences": [
+        {
+          "attempt": 1,
+          "frame": 153,
+          "time": 5.1,
+          "confidence": 0.74
+        }
+      ]
+    },
+    {
+      "rule_id": 11,
+      "category": "Arms",
+      "title": "Lock off before you reach",
+      "text": "Your pulling arm was almost straight as you reached. Bend it to bring the hold closer.",
+      "frame": 130,
+      "time": 4.333,
+      "confidence": 0.68,
+      "evidence": {
+        "elbow_angle": 152
+      },
+      "attempt": 1,
+      "occurrences": [
+        {
+          "attempt": 1,
+          "frame": 130,
+          "time": 4.333,
+          "confidence": 0.68
+        }
+      ]
+    },
+    {
+      "rule_id": 5,
+      "category": "Hips",
+      "title": "Hips to the wall",
+      "text": "Your center of gravity hung away from the wall while you reached. Turn your hip in to reach farther.",
+      "frame": 36,
+      "time": 1.2,
+      "confidence": 0.61,
+      "evidence": {
+        "cog_outside_base_s": 0.4,
+        "hip_wall_distance_px": 210,
+        "hip_angle": 118
+      },
+      "attempt": 0,
+      "occurrences": [
+        {
+          "attempt": 0,
+          "frame": 36,
+          "time": 1.2,
+          "confidence": 0.61
+        }
+      ]
     }
   ],
   "no_cue_reason": null,

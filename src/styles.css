@@ -426,3 +426,11 @@ dialog.modal::backdrop { background: var(--scrim); }
 dialog.modal h2 { margin: 0 0 8px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
 .trim-toggle { align-self: flex-start; margin-top: 4px; }
+
+/* Attempts (v1.5) */
+.attempts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.attempts-label, .seen-in-label {
+  font: 500 11px/14px var(--font-ui); text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted);
+}
+.attempts .chip { min-height: var(--btn-md); }
+.seen-in { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 6px; }

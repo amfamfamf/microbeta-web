@@ -1,16 +1,22 @@
 import { useRef } from 'react'
-import type { Cue } from '../lib/types'
+/** A cue marker: `index` = the cue's position in the cue list (shown as its number). */
+export interface Marker {
+  index: number
+  time: number
+  title: string
+}
 
 interface Props {
   time: number
   /** Play window in seconds (the auto-trim, or the whole clip). Times shown are clip times. */
   start: number
   end: number
-  cues: Cue[]
+  /** Only markers inside start..end are drawn. */
+  markers: Marker[]
   fallTime: number | null
   activeCue: number
   onSeek: (t: number) => void
-  onCue: (index: number) => void
+  onCue: (index: number, time: number) => void
 }
 
 function pctIn(t: number, start: number, end: number) {
@@ -23,11 +29,12 @@ function fmt(t: number) {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`
 }
 
-export function Scrubber({ time, start, end, cues, fallTime, activeCue, onSeek, onCue }: Props) {
+export function Scrubber({ time, start, end, markers, fallTime, activeCue, onSeek, onCue }: Props) {
   const trackRef = useRef<HTMLDivElement>(null)
   const duration = end - start
   const pct = (t: number) => pctIn(t, start, end)
   const dragging = useRef(false)
+  const shown = markers.filter((m) => m.time >= start - 0.01 && m.time <= end + 0.01)
 
   const seekFromEvent = (clientX: number) => {
     const el = trackRef.current
@@ -40,16 +47,16 @@ export function Scrubber({ time, start, end, cues, fallTime, activeCue, onSeek, 
   return (
     <div className="scrubber">
       <div className="scrubber-markers" aria-label="Cue markers">
-        {cues.map((c, i) => (
+        {shown.map((m) => (
           <button
-            key={i}
+            key={`${m.index}@${m.time}`}
             type="button"
-            className={'cue-marker' + (i === activeCue ? ' active' : '')}
-            style={{ left: `clamp(16px, ${pct(c.time)}%, calc(100% - 16px))` }}
-            onClick={() => onCue(i)}
-            aria-label={`Cue ${i + 1}: ${c.title}, at ${fmt(c.time)}`}
+            className={'cue-marker' + (m.index === activeCue ? ' active' : '')}
+            style={{ left: `clamp(16px, ${pct(m.time)}%, calc(100% - 16px))` }}
+            onClick={() => onCue(m.index, m.time)}
+            aria-label={`Cue ${m.index + 1}: ${m.title}, at ${fmt(m.time)}`}
           >
-            {i + 1}
+            {m.index + 1}
           </button>
         ))}
       </div>
@@ -82,8 +89,8 @@ export function Scrubber({ time, start, end, cues, fallTime, activeCue, onSeek, 
         {fallTime != null && fallTime >= start && fallTime <= end && (
           <div className="scrubber-fall" style={{ left: `${pct(fallTime)}%` }} title="Fall" />
         )}
-        {cues.map((c, i) => (
-          <div key={i} className="scrubber-tick" style={{ left: `${pct(c.time)}%` }} />
+        {shown.map((m) => (
+          <div key={`${m.index}@${m.time}`} className="scrubber-tick" style={{ left: `${pct(m.time)}%` }} />
         ))}
         <div className="scrubber-thumb" style={{ left: `${pct(time)}%` }} />
       </div>

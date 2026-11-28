@@ -8,6 +8,9 @@ interface Props {
   active?: boolean
   feedback?: FeedbackApi
   onShow: () => void
+  /** v1.5, clips with several attempts: where this cue happened. Each chip jumps to that moment. */
+  seenIn?: { attempt: number; time: number }[]
+  onShowAt?: (time: number) => void
 }
 
 function fmtValue(v: unknown): string {
@@ -26,7 +29,7 @@ function label(key: string) {
   return key.replace(/_/g, ' ')
 }
 
-export function CueCard({ cue, index, hero, active, feedback, onShow }: Props) {
+export function CueCard({ cue, index, hero, active, feedback, onShow, seenIn, onShowAt }: Props) {
   const [details, setDetails] = useState(false)
   const [askWhy, setAskWhy] = useState(false)
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -58,6 +61,22 @@ export function CueCard({ cue, index, hero, active, feedback, onShow }: Props) {
       {hero && <p className="eyebrow">Your top fix</p>}
       <h2 className="cue-title">{cue.title}</h2>
       <p className="cue-text">{cue.text}</p>
+      {seenIn && seenIn.length > 0 && (
+        <div className="seen-in" role="group" aria-label="Attempts where this happened">
+          <span className="seen-in-label">{seenIn.length > 1 ? `Seen in ${seenIn.length} attempts` : 'Seen in'}</span>
+          {seenIn.map((o) => (
+            <button
+              key={`${o.attempt}@${o.time}`}
+              type="button"
+              className="chip"
+              onClick={() => onShowAt?.(o.time)}
+              aria-label={`Show attempt ${o.attempt + 1} at ${fmtTime(o.time)}`}
+            >
+              Attempt {o.attempt + 1} · {fmtTime(o.time)}
+            </button>
+          ))}
+        </div>
+      )}
 
       <button type="button" className="link-btn details-toggle" aria-expanded={details} onClick={() => setDetails(!details)}>
         {details ? 'Hide details' : 'Details'}
