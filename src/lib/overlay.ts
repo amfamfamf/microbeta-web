@@ -180,7 +180,7 @@ export function drawOverlay(
     ctx.stroke()
     ctx.globalAlpha = 1
     if (near) {
-      const center = apply(W, [t.x + t.w / 2, t.y + t.h / 2])
+      const center = apply(W, [t.x, t.y]) // hold x, y is already the center
       const hand = reachingHand(f, center, i)
       if (hand) {
         ctx.strokeStyle = COLORS.outline

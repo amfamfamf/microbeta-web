@@ -50,12 +50,15 @@ export function reproject(f: FeaturesJson, p: Point, from: number, to: number): 
   return apply(wallAt(f, to), apply(invert(wallAt(f, from)), p))
 }
 
-/** Path of a reference-coordinate box (grown by `pad` on each side) as it appears in frame `i`. */
+/**
+ * Path of a hold box (grown by `pad` on each side) as it appears in the frame of transform `T`.
+ * Hold boxes are CENTER x, y plus w, h, in reference coordinates (CONTRACT.md).
+ */
 export function boxPath(ctx: CanvasRenderingContext2D, T: Affine, b: Box, pad = 0) {
-  const x0 = b.x - pad
-  const y0 = b.y - pad
-  const x1 = b.x + b.w + pad
-  const y1 = b.y + b.h + pad
+  const x0 = b.x - b.w / 2 - pad
+  const y0 = b.y - b.h / 2 - pad
+  const x1 = b.x + b.w / 2 + pad
+  const y1 = b.y + b.h / 2 + pad
   const pts = ([[x0, y0], [x1, y0], [x1, y1], [x0, y1]] as Point[]).map((p) => apply(T, p))
   ctx.beginPath()
   ctx.moveTo(pts[0][0], pts[0][1])

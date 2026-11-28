@@ -194,7 +194,8 @@ const features = {
 }
 
 const t3 = (f) => Math.round((f / FPS) * 1000) / 1000
-const TARGET_BOX = { id: TARGET.id, x: TARGET.x, y: TARGET.y, w: TARGET.w, h: TARGET.h }
+// Contract: hold x, y = CENTER. HOLDS above are top-left for drawing convenience; convert on output.
+const TARGET_BOX = { id: TARGET.id, x: TARGET.x + TARGET.w / 2, y: TARGET.y + TARGET.h / 2, w: TARGET.w, h: TARGET.h }
 const cue = (attempt, rule_id, category, title, text, frame, confidence, evidence) =>
   ({ rule_id, category, title, text, frame, time: t3(frame), confidence, evidence, attempt })
 
@@ -256,10 +257,10 @@ const result = {
   wall: { class: 'overhang', confidence: 0.6, source: 'inferred' },
   target_hold: TARGET_BOX,
   holds: {
-    holds: HOLDS.map((h) => ({ id: h.id, x: h.x, y: h.y, w: h.w, h: h.h, area: h.w * h.h, hue_bin: h.hue[0] === 80 ? 3 : 1, problem: h.hue[0] === 80 })),
+    holds: HOLDS.map((h) => ({ id: h.id, x: h.x + h.w / 2, y: h.y + h.h / 2, w: h.w, h: h.h, area: h.w * h.h, hue_bin: h.hue[0] === 80 ? 3 : 1, problem: h.hue[0] === 80 })),
     problem_hue_bin: 3, confidence: 0.7, tapped_id: TARGET.id,
   },
-  camera: { moved: true, max_shift_px: 84.0, jitter_px: 3.1, checked: 60 },
+  camera: { moved: true, max_shift_px: 84.0, jitter_px: 3.1, checked: 60, tracked: true },
   warnings: [
     'Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view.',
   ],
@@ -273,7 +274,7 @@ const resultEmpty = {
   ...result,
   attempts: attempts.map((a) => ({ ...a, cues: [], no_cue_reason: 'Feet out of view before the fall.' })),
   cues: [],
-  camera: { moved: true, max_shift_px: 41.7, jitter_px: 6.2 },
+  camera: { moved: true, max_shift_px: 41.7, jitter_px: 6.2, checked: 40, tracked: false },
   warnings: [
     'The camera moved during the clip, so we skipped the hold checks. Use a tripod or lean the phone on something steady.',
     'Your feet were near the bottom edge of the frame. Step back a little so your whole body stays in view.',

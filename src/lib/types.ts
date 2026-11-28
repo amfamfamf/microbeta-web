@@ -54,6 +54,7 @@ export interface ResultsRow {
 export type FallKind = 'hand_off' | 'foot_cut_then_off' | 'swing_off' | 'barn_door' | 'short_reach'
 export type WallClass = WallHint | 'unknown'
 
+/** Hold box: `x`, `y` = CENTER, `w`, `h` = size, pixels (reference coordinates from v1.6). */
 export interface Box {
   x: number
   y: number
@@ -121,7 +122,14 @@ export interface ResultJson {
     tapped_id?: number | null
   } | null
   /** v1.1, informational. */
-  camera?: { moved: boolean; max_shift_px: number | null; jitter_px: number | null; checked?: number }
+  camera?: {
+    moved: boolean
+    max_shift_px: number | null
+    jitter_px: number | null
+    checked?: number
+    /** v1.6: the backend followed the wall through the camera move (holds checked normally). */
+    tracked?: boolean
+  }
   /** v1.1: filming tips, always an array (optional here for v1 results). */
   warnings?: string[]
   /** v1.4: play window, seconds in video.mp4 (0.5 s before leaving the ground to 0.5 s after landing). */

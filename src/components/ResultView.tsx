@@ -387,7 +387,7 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
               <dd>
                 {result.camera.max_shift_px == null
                   ? 'Not checked (plain wall)'
-                  : `${result.camera.moved ? 'Moved' : 'Steady'} (shift ${result.camera.max_shift_px.toFixed(1)} px)`}
+                  : `${result.camera.moved ? (result.camera.tracked ? 'Moved, tracked' : 'Moved') : 'Steady'} (shift ${result.camera.max_shift_px.toFixed(1)} px)`}
               </dd>
             </>
           )}
