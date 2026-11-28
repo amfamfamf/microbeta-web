@@ -98,6 +98,8 @@ export interface ResultJson {
   camera?: { moved: boolean; max_shift_px: number | null; jitter_px: number | null; checked?: number }
   /** v1.1: filming tips, always an array (optional here for v1 results). */
   warnings?: string[]
+  /** v1.4: play window, seconds in video.mp4 (0.5 s before leaving the ground to 0.5 s after landing). */
+  trim?: { start: number; end: number; leave_ground: number | null; land: number | null; pad_s: number }
   cues: Cue[]
   no_cue_reason: string | null
   safety_note: string | null

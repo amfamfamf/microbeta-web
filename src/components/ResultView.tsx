@@ -37,12 +37,18 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
   const [overlayOn, setOverlayOn] = useState(true)
   const [activeCue, setActiveCue] = useState(0)
   const [videoError, setVideoError] = useState(false)
+  // Auto-trim (v1.4): play only from just before leaving the ground to just after landing, unless "Show full video".
+  const [full, setFull] = useState(false)
+  const trim = result.trim
+  const trimmed = Boolean(trim && (trim.start > 0.05 || trim.end < duration - 0.05))
+  const lo = trimmed && !full ? trim!.start : 0
+  const hi = trimmed && !full ? Math.min(trim!.end, duration) : duration
 
   // Latest values for the paint loop without re-subscribing it.
   const layers = useMemo(() => layersFor(result.cues[activeCue]), [result, activeCue])
-  const live = useRef({ result, features, overlayOn, layers })
+  const live = useRef({ result, features, overlayOn, layers, lo, hi })
   useEffect(() => {
-    live.current = { result, features, overlayOn, layers }
+    live.current = { result, features, overlayOn, layers, lo, hi }
   })
 
   const paint = useCallback((t: number) => {
@@ -77,7 +83,17 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
     let raf = 0
     let lastFrame = -1
     const fpsOf = () => live.current.features.fps || 30
+    // Stop at the end of the play window (the file itself is not cut). If a slow timer let it run past, step back.
+    const atEnd = (t: number) => {
+      const { hi } = live.current
+      if (v.paused || hi >= v.duration - 0.05 || t < hi - 0.01) return false
+      v.pause()
+      if (t > hi + 0.02) v.currentTime = hi
+      return t > hi + 0.02
+    }
+    const onTimeUpdate = () => atEnd(v.currentTime)
     const tick = (t: number, force = false) => {
+      if (atEnd(t)) return
       const frame = Math.floor(t * fpsOf() + 0.01)
       if (!force && frame === lastFrame) return
       lastFrame = frame
@@ -102,8 +118,13 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
     }
     raf = requestAnimationFrame(loop)
     const onSeeked = () => tick(v.currentTime, true)
+    const onLoaded = () => {
+      if (v.currentTime < live.current.lo) v.currentTime = live.current.lo
+      tick(v.currentTime, true)
+    }
     v.addEventListener('seeked', onSeeked)
-    v.addEventListener('loadeddata', onSeeked)
+    v.addEventListener('timeupdate', onTimeUpdate)
+    v.addEventListener('loadeddata', onLoaded)
     const ro = new ResizeObserver(() => paint(v.currentTime))
     if (boxRef.current) ro.observe(boxRef.current)
     return () => {
@@ -111,7 +132,8 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
       if (vfc && v.cancelVideoFrameCallback) v.cancelVideoFrameCallback(vfc)
       cancelAnimationFrame(raf)
       v.removeEventListener('seeked', onSeeked)
-      v.removeEventListener('loadeddata', onSeeked)
+      v.removeEventListener('timeupdate', onTimeUpdate)
+      v.removeEventListener('loadeddata', onLoaded)
       ro.disconnect()
     }
   }, [paint, videoUrl])
@@ -123,14 +145,24 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
   const seek = (t: number) => {
     const v = videoRef.current
     if (!v) return
-    v.currentTime = Math.max(0, Math.min(t, duration))
+    v.currentTime = Math.max(lo, Math.min(t, hi))
     setTime(v.currentTime)
   }
+
+  // Switching between trimmed and full: keep the playhead inside the new window.
+  useEffect(() => {
+    const v = videoRef.current
+    if (v && (v.currentTime < lo || v.currentTime > hi)) v.currentTime = lo
+  }, [lo, hi])
 
   const showCue = (i: number) => {
     setActiveCue(i)
     videoRef.current?.pause()
-    seek(result.cues[i].time)
+    const t = result.cues[i].time
+    if (t < lo || t > hi) {
+      setFull(true) // a cue outside the trimmed window: show the whole clip
+      if (videoRef.current) videoRef.current.currentTime = t
+    } else seek(t)
     boxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
@@ -138,7 +170,7 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
     const v = videoRef.current
     if (!v) return
     if (v.paused) {
-      if (v.ended) v.currentTime = 0
+      if (v.ended || v.currentTime >= hi - 0.02 || v.currentTime < lo) v.currentTime = lo
       v.play().catch(() => setVideoError(true))
     } else v.pause()
   }
@@ -212,7 +244,8 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
 
         <Scrubber
           time={time}
-          duration={duration}
+          start={lo}
+          end={hi}
           cues={result.cues}
           fallTime={result.fall?.time ?? null}
           activeCue={activeCue}
@@ -222,6 +255,11 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
           }}
           onCue={showCue}
         />
+        {trimmed && (
+          <button type="button" className="link-btn small trim-toggle" onClick={() => setFull((x) => !x)}>
+            {full ? 'Show just the climb' : 'Show full video'}
+          </button>
+        )}
         {overlayOn && <Legend layers={layers} tapped={result.holds?.tapped_id != null && layers.has('reach')} />}
       </div>
 

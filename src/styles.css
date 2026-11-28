@@ -425,3 +425,4 @@ dialog.modal {
 dialog.modal::backdrop { background: var(--scrim); }
 dialog.modal h2 { margin: 0 0 8px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.trim-toggle { align-self: flex-start; margin-top: 4px; }
