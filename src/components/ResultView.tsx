@@ -27,8 +27,6 @@ const FALL_KIND: Record<string, string> = {
   short_reach: 'Came up short on the reach',
 }
 
-const RATES = [1, 0.5, 0.25]
-
 export function ResultView({ result, features, videoUrl, feedback, actions }: Props) {
   const videoRef = useRef<VideoWithVfc>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -37,7 +35,6 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
   const [duration, setDuration] = useState(result.duration || features.keypoints.length / features.fps)
   const [playing, setPlaying] = useState(false)
   const [overlayOn, setOverlayOn] = useState(true)
-  const [rateIdx, setRateIdx] = useState(0)
   const [activeCue, setActiveCue] = useState(0)
   const [videoError, setVideoError] = useState(false)
 
@@ -146,12 +143,6 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
     } else v.pause()
   }
 
-  const cycleRate = () => {
-    const next = (rateIdx + 1) % RATES.length
-    setRateIdx(next)
-    if (videoRef.current) videoRef.current.playbackRate = RATES[next]
-  }
-
   const [top, ...rest] = result.cues
   const aspect = `${features.width} / ${features.height}`
 
@@ -212,9 +203,6 @@ export function ResultView({ result, features, videoUrl, feedback, actions }: Pr
         <div className="controls">
           <button type="button" className="btn small" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
             {playing ? '❚❚ Pause' : '▶ Play'}
-          </button>
-          <button type="button" className="btn small ghost" onClick={cycleRate} aria-label="Playback speed">
-            {RATES[rateIdx]}×
           </button>
           <label className="toggle">
             <input type="checkbox" checked={overlayOn} onChange={(e) => setOverlayOn(e.target.checked)} />
