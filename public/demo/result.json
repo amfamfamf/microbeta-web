@@ -307,6 +307,12 @@
       "attempt": 1,
       "occurrences": [
         {
+          "attempt": 0,
+          "frame": 57,
+          "time": 1.9,
+          "confidence": 0.52
+        },
+        {
           "attempt": 1,
           "frame": 153,
           "time": 5.1,

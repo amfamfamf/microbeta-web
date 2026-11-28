@@ -216,10 +216,10 @@ const attempts = ATTEMPTS.map((a, k) => ({
   no_cue_reason: null,
 }))
 
-// Top-level cues (v1.5): every cue >= HIGH_CONF from any attempt, merged by rule at its best occurrence.
-const HIGH_CONF = 0.6
+// Top-level cues (v1.5): every cue >= min_confidence (0.4, same bar as per attempt), merged by rule at its best occurrence.
+const MIN_CONFIDENCE = 0.4
 const byRule = new Map()
-for (const c of attemptCues.flat().filter((c) => c.confidence >= HIGH_CONF)) {
+for (const c of attemptCues.flat().filter((c) => c.confidence >= MIN_CONFIDENCE)) {
   const occ = { attempt: c.attempt, frame: c.frame, time: c.time, confidence: c.confidence }
   const prev = byRule.get(c.rule_id)
   if (!prev) byRule.set(c.rule_id, { ...c, occurrences: [occ] })
